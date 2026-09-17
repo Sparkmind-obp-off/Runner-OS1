@@ -4,12 +4,14 @@ import type { ZodSchema } from 'zod'
 import { AuthService, type PublicUser } from './application/auth-service'
 import type { RunStore } from './application/ports'
 import { RunService } from './application/run-service'
+import { Phase4Service } from './application/phase4-service'
+import { GrokProvider, selectAIContext } from './application/ai-service'
 import { AppError } from './domain/errors'
 import { D1RunStore } from './infrastructure/d1-store'
-import { blockSchema, createRunSchema, focusSchema, listRunsSchema, loginSchema, nextActionSchema, progressSchema, registerSchema, todayQuerySchema, updateRunSchema } from './http/schemas'
+import { activitySchema, aiQuestionSchema, blockSchema, createRunSchema, evidenceSchema, focusSchema, listRunsSchema, loginSchema, nextActionSchema, occurrenceQuerySchema, occurrenceSchema, profileSchema, progressSchema, recurringSchema, registerSchema, runningEventSchema, todayQuerySchema, updateRunSchema } from './http/schemas'
 import { renderShell } from './view'
 
-type Bindings = { DB: D1Database }
+type Bindings = { DB: D1Database; GROK_API_KEY?: string; GROK_MODEL?: string; STRAVA_CLIENT_ID?: string; STRAVA_CLIENT_SECRET?: string }
 type Variables = { user: PublicUser; store: RunStore }
 type AppEnv = { Bindings: Bindings; Variables: Variables }
 
@@ -72,6 +74,7 @@ export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(e
   app.use('/api/runs', requireAuth)
   app.use('/api/runs/*', requireAuth)
   app.use('/api/today', requireAuth)
+  for (const path of ['/api/profile','/api/profile/*','/api/home','/api/activities','/api/activities/*','/api/recurring-activities','/api/recurring-activities/*','/api/events','/api/events/*','/api/integrations/*','/api/ai/*']) app.use(path, requireAuth)
 
   app.get('/api/runs', async (c) => {
     const query = parseQuery(c.req.query(), listRunsSchema)
@@ -114,6 +117,45 @@ export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(e
     return c.json({ data: await runs(c).today(c.get('user').id, query.date) })
   })
 
+  app.get('/api/profile', async (c) => c.json({ data: await phase4(c).getProfile(c.get('user').id) }))
+  app.put('/api/profile', async (c) => c.json({ data: await phase4(c).saveProfile(c.get('user').id, await parseBody(c, profileSchema) as any) }))
+
+  app.get('/api/home', async (c) => c.json({ data: await phase4(c).getHome(c.get('user').id) }))
+
+  app.get('/api/recurring-activities', async (c) => c.json({ data: await phase4(c).listRecurring(c.get('user').id) }))
+  app.post('/api/recurring-activities', async (c) => c.json({ data: await phase4(c).saveRecurring(c.get('user').id, await parseBody(c, recurringSchema) as any) }, 201))
+  app.put('/api/recurring-activities/:id', async (c) => c.json({ data: await phase4(c).saveRecurring(c.get('user').id, await parseBody(c, recurringSchema) as any, c.req.param('id')) }))
+  app.get('/api/recurring-activities/occurrences', async (c) => { const q=parseQuery(c.req.query(),occurrenceQuerySchema); return c.json({data:await phase4(c).listOccurrences(c.get('user').id,q.from,q.to)}) })
+  app.put('/api/recurring-activities/:id/occurrences', async (c) => c.json({ data: await phase4(c).saveOccurrence(c.get('user').id, c.req.param('id'), await parseBody(c, occurrenceSchema) as any) }))
+
+  app.get('/api/activities', async (c) => c.json({ data: await phase4(c).listActivities(c.get('user').id) }))
+  app.post('/api/activities', async (c) => c.json({ data: await phase4(c).saveActivity(c.get('user').id, await parseBody(c, activitySchema) as any) }, 201))
+  app.put('/api/activities/:id', async (c) => c.json({ data: await phase4(c).saveActivity(c.get('user').id, await parseBody(c, activitySchema) as any, c.req.param('id')) }))
+
+  app.get('/api/events', async (c) => c.json({ data: await phase4(c).listEvents(c.get('user').id) }))
+  app.post('/api/events', async (c) => c.json({ data: await phase4(c).saveEvent(c.get('user').id, await parseBody(c, runningEventSchema) as any) }, 201))
+  app.put('/api/events/:id', async (c) => c.json({ data: await phase4(c).saveEvent(c.get('user').id, await parseBody(c, runningEventSchema) as any, c.req.param('id')) }))
+  app.get('/api/events/:id/context', async (c) => c.json({ data: await phase4(c).getEventWithRelevance(c.get('user').id, c.req.param('id')) }))
+  app.get('/api/events/:id/evidence', async (c) => c.json({ data: await phase4(c).listEvidence(c.get('user').id, c.req.param('id')) }))
+  app.post('/api/events/:id/evidence', async (c) => c.json({ data: await phase4(c).addEvidence(c.get('user').id, c.req.param('id'), await parseBody(c, evidenceSchema) as any) }, 201))
+
+  app.get('/api/integrations/strava', async (c) => c.json({ data: { ...(await phase4(c).getIntegration(c.get('user').id)), available:Boolean(c.env?.STRAVA_CLIENT_ID && c.env?.STRAVA_CLIENT_SECRET) } }))
+  app.post('/api/integrations/strava/connect', async (c) => {
+    if (!c.env?.STRAVA_CLIENT_ID || !c.env?.STRAVA_CLIENT_SECRET) throw new AppError('PROVIDER_UNAVAILABLE','Koneksi Strava belum tersedia karena kredensial produksi belum dikonfigurasi.',503)
+    throw new AppError('PROVIDER_UNAVAILABLE','Alur OAuth Strava belum diaktifkan. Data lokal tetap aman.',503)
+  })
+  app.post('/api/integrations/strava/disconnect', async (c) => c.json({ data: await phase4(c).disconnectStrava(c.get('user').id) }))
+  app.post('/api/integrations/strava/sync', async () => { throw new AppError('PROVIDER_UNAVAILABLE','Sinkronisasi Strava belum tersedia. Tidak ada data aktivitas yang dibuat.',503) })
+
+  app.post('/api/ai/ask', async (c) => {
+    const { question } = await parseBody(c, aiQuestionSchema)
+    const env = c.env ?? ({} as Bindings)
+    if (!env.GROK_API_KEY) throw new AppError('AI_PROVIDER_UNAVAILABLE','Tanya AI belum tersedia karena akses Grok belum dikonfigurasi.',503)
+    const context = await selectAIContext(c.get('store'), c.get('user').id, question)
+    const answer = await new GrokProvider(env.GROK_API_KEY, env.GROK_MODEL).answer(question, context)
+    return c.json({ data: { answer, provider:'grok', contextPolicy:'minimum_relevant' } })
+  })
+
   app.get('/health', (c) => c.json({ status: 'ok' }))
   app.get('*', (c) => c.html(renderShell()))
 
@@ -130,6 +172,7 @@ export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(e
   return app
 
   function runs(c: { get: (key: 'store') => RunStore }) { return new RunService(c.get('store')) }
+  function phase4(c: { get: (key: 'store') => RunStore }) { return new Phase4Service(c.get('store')) }
   async function lifecycle(c: any, action: 'start' | 'pause' | 'resume' | 'complete' | 'archive') {
     const service = runs(c)
     return c.json({ data: await service[action](c.get('user').id, c.req.param('id')) })

@@ -1,74 +1,71 @@
 import type { RunStore } from '../application/ports'
-import type { Run, RunEvent, Session, User } from '../domain/models'
+import type { EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../domain/models'
 
-interface UserRow { id: string; email: string; display_name: string; password_hash: string; password_salt: string; created_at: string }
-interface SessionRow { id: string; owner_id: string; token_hash: string; expires_at: string; created_at: string }
-interface RunRow { id: string; owner_id: string; title: string; type: Run['type']; outcome: string; status: Run['status']; priority: Run['priority']; next_action: string; progress: number; blocker: string | null; due_at: string | null; tags: string; focus_date: string | null; focus_order: number | null; created_at: string; updated_at: string }
-interface EventRow { id: string; run_id: string; owner_id: string; event_type: RunEvent['eventType']; previous_state: RunEvent['previousState']; new_state: RunEvent['newState']; metadata: string; created_at: string }
+type Row = Record<string, any>
+interface UserRow extends Row { id:string; email:string; display_name:string; password_hash:string; password_salt:string; created_at:string }
+interface SessionRow extends Row { id:string; owner_id:string; token_hash:string; expires_at:string; created_at:string }
+interface RunRow extends Row { id:string; owner_id:string; title:string; type:Run['type']; outcome:string; status:Run['status']; priority:Run['priority']; next_action:string; progress:number; blocker:string|null; due_at:string|null; tags:string; focus_date:string|null; focus_order:number|null; created_at:string; updated_at:string }
+interface CoreEventRow extends Row { id:string; run_id:string; owner_id:string; event_type:RunEvent['eventType']; previous_state:RunEvent['previousState']; new_state:RunEvent['newState']; metadata:string; created_at:string }
 
 export class D1RunStore implements RunStore {
   constructor(private readonly db: D1Database) {}
 
-  async createUser(user: User): Promise<void> {
-    await this.db.prepare('INSERT INTO users (id,email,display_name,password_hash,password_salt,created_at) VALUES (?,?,?,?,?,?)')
-      .bind(user.id, user.email, user.displayName, user.passwordHash, user.passwordSalt, user.createdAt).run()
-  }
-  async findUserByEmail(email: string): Promise<User | null> {
-    return mapUser(await this.db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').bind(email).first<UserRow>())
-  }
-  async findUserById(id: string): Promise<User | null> {
-    return mapUser(await this.db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<UserRow>())
-  }
-  async createSession(session: Session): Promise<void> {
-    await this.db.batch([
-      this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(session.createdAt),
-      this.db.prepare('INSERT INTO sessions (id,owner_id,token_hash,expires_at,created_at) VALUES (?,?,?,?,?)').bind(session.id, session.ownerId, session.tokenHash, session.expiresAt, session.createdAt),
-    ])
-  }
-  async findSessionByTokenHash(tokenHash: string): Promise<Session | null> {
-    return mapSession(await this.db.prepare('SELECT * FROM sessions WHERE token_hash = ?').bind(tokenHash).first<SessionRow>())
-  }
-  async deleteSessionByTokenHash(tokenHash: string): Promise<void> { await this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash).run() }
-  async deleteExpiredSessions(now: string): Promise<void> { await this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now).run() }
+  async createUser(user: User) { await this.db.prepare('INSERT INTO users (id,email,display_name,password_hash,password_salt,created_at) VALUES (?,?,?,?,?,?)').bind(user.id,user.email,user.displayName,user.passwordHash,user.passwordSalt,user.createdAt).run() }
+  async findUserByEmail(email:string) { return mapUser(await this.db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').bind(email).first<UserRow>()) }
+  async findUserById(id:string) { return mapUser(await this.db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<UserRow>()) }
+  async createSession(session:Session) { await this.db.batch([this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(session.createdAt),this.db.prepare('INSERT INTO sessions (id,owner_id,token_hash,expires_at,created_at) VALUES (?,?,?,?,?)').bind(session.id,session.ownerId,session.tokenHash,session.expiresAt,session.createdAt)]) }
+  async findSessionByTokenHash(hash:string) { return mapSession(await this.db.prepare('SELECT * FROM sessions WHERE token_hash = ?').bind(hash).first<SessionRow>()) }
+  async deleteSessionByTokenHash(hash:string) { await this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(hash).run() }
+  async deleteExpiredSessions(now:string) { await this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now).run() }
 
-  async createRunWithEvent(run: Run, event: RunEvent): Promise<void> {
-    await this.db.batch([this.insertRun(run), this.insertEvent(event)])
-  }
-  async getRun(ownerId: string, runId: string): Promise<Run | null> {
-    return mapRun(await this.db.prepare('SELECT * FROM runs WHERE id = ? AND owner_id = ?').bind(runId, ownerId).first<RunRow>())
-  }
-  async listRuns(ownerId: string): Promise<Run[]> {
-    const result = await this.db.prepare("SELECT * FROM runs WHERE owner_id = ? ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, updated_at DESC").bind(ownerId).all<RunRow>()
-    return result.results.map(mapRunNonNull)
-  }
-  async saveRunWithEvent(run: Run, event: RunEvent): Promise<void> {
-    await this.db.batch([
-      this.db.prepare('UPDATE runs SET title=?,type=?,outcome=?,status=?,priority=?,next_action=?,progress=?,blocker=?,due_at=?,tags=?,focus_date=?,focus_order=?,updated_at=? WHERE id=? AND owner_id=?')
-        .bind(run.title, run.type, run.outcome, run.status, run.priority, run.nextAction, run.progress, run.blocker, run.dueAt, JSON.stringify(run.tags), run.focusDate, run.focusOrder, run.updatedAt, run.id, run.ownerId),
-      this.insertEvent(event),
-    ])
-  }
-  async listEvents(ownerId: string, runId: string): Promise<RunEvent[]> {
-    const result = await this.db.prepare('SELECT * FROM run_events WHERE owner_id = ? AND run_id = ? ORDER BY created_at DESC, id DESC').bind(ownerId, runId).all<EventRow>()
-    return result.results.map(mapEvent)
-  }
-  async listRecentEvents(ownerId: string, limit: number): Promise<RunEvent[]> {
-    const result = await this.db.prepare('SELECT * FROM run_events WHERE owner_id = ? ORDER BY created_at DESC, id DESC LIMIT ?').bind(ownerId, limit).all<EventRow>()
-    return result.results.map(mapEvent)
-  }
+  async createRunWithEvent(run:Run,event:RunEvent) { await this.db.batch([this.insertRun(run),this.insertEvent(event)]) }
+  async getRun(ownerId:string,runId:string) { return mapRun(await this.db.prepare('SELECT * FROM runs WHERE id=? AND owner_id=?').bind(runId,ownerId).first<RunRow>()) }
+  async listRuns(ownerId:string) { return (await this.db.prepare("SELECT * FROM runs WHERE owner_id=? ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, updated_at DESC").bind(ownerId).all<RunRow>()).results.map(mapRunNonNull) }
+  async saveRunWithEvent(run:Run,event:RunEvent) { await this.db.batch([this.db.prepare('UPDATE runs SET title=?,type=?,outcome=?,status=?,priority=?,next_action=?,progress=?,blocker=?,due_at=?,tags=?,focus_date=?,focus_order=?,updated_at=? WHERE id=? AND owner_id=?').bind(run.title,run.type,run.outcome,run.status,run.priority,run.nextAction,run.progress,run.blocker,run.dueAt,JSON.stringify(run.tags),run.focusDate,run.focusOrder,run.updatedAt,run.id,run.ownerId),this.insertEvent(event)]) }
+  async listEvents(ownerId:string,runId:string) { return (await this.db.prepare('SELECT * FROM run_events WHERE owner_id=? AND run_id=? ORDER BY created_at DESC,id DESC').bind(ownerId,runId).all<CoreEventRow>()).results.map(mapEvent) }
+  async listRecentEvents(ownerId:string,limit:number) { return (await this.db.prepare('SELECT * FROM run_events WHERE owner_id=? ORDER BY created_at DESC,id DESC LIMIT ?').bind(ownerId,limit).all<CoreEventRow>()).results.map(mapEvent) }
 
-  private insertRun(run: Run): D1PreparedStatement {
-    return this.db.prepare('INSERT INTO runs (id,owner_id,title,type,outcome,status,priority,next_action,progress,blocker,due_at,tags,focus_date,focus_order,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .bind(run.id, run.ownerId, run.title, run.type, run.outcome, run.status, run.priority, run.nextAction, run.progress, run.blocker, run.dueAt, JSON.stringify(run.tags), run.focusDate, run.focusOrder, run.createdAt, run.updatedAt)
-  }
-  private insertEvent(event: RunEvent): D1PreparedStatement {
-    return this.db.prepare('INSERT INTO run_events (id,run_id,owner_id,event_type,previous_state,new_state,metadata,created_at) VALUES (?,?,?,?,?,?,?,?)')
-      .bind(event.id, event.runId, event.ownerId, event.eventType, event.previousState, event.newState, JSON.stringify(event.metadata), event.createdAt)
-  }
+  async getProfile(ownerId:string) { return mapProfile(await this.db.prepare('SELECT * FROM runner_profiles WHERE owner_id=?').bind(ownerId).first<Row>()) }
+  async saveProfile(p:RunnerProfile) { await this.db.prepare(`INSERT INTO runner_profiles (id,owner_id,display_name,running_area,preferred_days,preferred_time,preferred_distances,primary_goal,preferred_event_types,running_with_others_preference,communities,notes,onboarding_completed_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_id) DO UPDATE SET display_name=excluded.display_name,running_area=excluded.running_area,preferred_days=excluded.preferred_days,preferred_time=excluded.preferred_time,preferred_distances=excluded.preferred_distances,primary_goal=excluded.primary_goal,preferred_event_types=excluded.preferred_event_types,running_with_others_preference=excluded.running_with_others_preference,communities=excluded.communities,notes=excluded.notes,onboarding_completed_at=excluded.onboarding_completed_at,updated_at=excluded.updated_at`).bind(p.id,p.ownerId,p.displayName,p.runningArea,json(p.preferredDays),p.preferredTime,json(p.preferredDistances),p.primaryGoal,json(p.preferredEventTypes),p.runningWithOthersPreference,json(p.communities),p.notes,p.onboardingCompletedAt,p.createdAt,p.updatedAt).run() }
+
+  async listRecurringActivities(ownerId:string) { return (await this.db.prepare('SELECT * FROM recurring_activities WHERE owner_id=? ORDER BY active DESC,name').bind(ownerId).all<Row>()).results.map(mapRecurring) }
+  async getRecurringActivity(ownerId:string,id:string) { return mapRecurringOrNull(await this.db.prepare('SELECT * FROM recurring_activities WHERE id=? AND owner_id=?').bind(id,ownerId).first<Row>()) }
+  async saveRecurringActivity(a:RecurringActivity) { await this.db.prepare(`INSERT INTO recurring_activities (id,owner_id,name,activity_type,recurrence_rule,usual_day,usual_time,usual_location,community,expected_distance_meters,notes,source,relevance_weight,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,activity_type=excluded.activity_type,recurrence_rule=excluded.recurrence_rule,usual_day=excluded.usual_day,usual_time=excluded.usual_time,usual_location=excluded.usual_location,community=excluded.community,expected_distance_meters=excluded.expected_distance_meters,notes=excluded.notes,source=excluded.source,relevance_weight=excluded.relevance_weight,active=excluded.active,updated_at=excluded.updated_at WHERE owner_id=excluded.owner_id`).bind(a.id,a.ownerId,a.name,a.activityType,a.recurrenceRule,a.usualDay,a.usualTime,a.usualLocation,a.community,a.expectedDistanceMeters,a.notes,a.source,a.relevanceWeight,a.active?1:0,a.createdAt,a.updatedAt).run() }
+  async listOccurrences(ownerId:string,from?:string,to?:string) { let sql='SELECT * FROM recurring_activity_occurrences WHERE owner_id=?'; const args:any[]=[ownerId]; if(from){sql+=' AND scheduled_at>=?';args.push(from)} if(to){sql+=' AND scheduled_at<=?';args.push(to)} sql+=' ORDER BY scheduled_at DESC'; return (await this.db.prepare(sql).bind(...args).all<Row>()).results.map(mapOccurrence) }
+  async saveOccurrence(o:RecurringOccurrence) { await this.db.prepare(`INSERT INTO recurring_activity_occurrences (id,owner_id,recurring_activity_id,scheduled_at,status,linked_running_activity_id,notes,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,recurring_activity_id,scheduled_at) DO UPDATE SET status=excluded.status,linked_running_activity_id=excluded.linked_running_activity_id,notes=excluded.notes,updated_at=excluded.updated_at`).bind(o.id,o.ownerId,o.recurringActivityId,o.scheduledAt,o.status,o.linkedRunningActivityId,o.notes,o.createdAt,o.updatedAt).run() }
+
+  async listRunningActivities(ownerId:string) { return (await this.db.prepare('SELECT * FROM running_activities WHERE owner_id=? ORDER BY started_at DESC').bind(ownerId).all<Row>()).results.map(mapActivity) }
+  async getRunningActivity(ownerId:string,id:string) { return mapActivityOrNull(await this.db.prepare('SELECT * FROM running_activities WHERE id=? AND owner_id=?').bind(id,ownerId).first<Row>()) }
+  async findRunningActivityByExternalId(ownerId:string,source:string,externalId:string) { return mapActivityOrNull(await this.db.prepare('SELECT * FROM running_activities WHERE owner_id=? AND source=? AND external_id=?').bind(ownerId,source,externalId).first<Row>()) }
+  async saveRunningActivity(a:RunningActivity) { await this.db.prepare(`INSERT INTO running_activities (id,owner_id,started_at,ended_at,duration_seconds,distance_meters,pace_seconds_per_km,elevation_meters,effort,feeling,source,external_id,event_id,recurring_activity_id,notes,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET started_at=excluded.started_at,ended_at=excluded.ended_at,duration_seconds=excluded.duration_seconds,distance_meters=excluded.distance_meters,pace_seconds_per_km=excluded.pace_seconds_per_km,elevation_meters=excluded.elevation_meters,effort=excluded.effort,feeling=excluded.feeling,event_id=excluded.event_id,recurring_activity_id=excluded.recurring_activity_id,notes=excluded.notes,updated_at=excluded.updated_at WHERE owner_id=excluded.owner_id`).bind(a.id,a.ownerId,a.startedAt,a.endedAt,a.durationSeconds,a.distanceMeters,a.paceSecondsPerKm,a.elevationMeters,a.effort,a.feeling,a.source,a.externalId,a.eventId,a.recurringActivityId,a.notes,a.createdAt,a.updatedAt).run() }
+
+  async listRunningEvents(ownerId:string) { return (await this.db.prepare('SELECT * FROM running_events WHERE owner_id=? ORDER BY CASE WHEN event_date IS NULL THEN 1 ELSE 0 END,event_date,edition_year DESC').bind(ownerId).all<Row>()).results.map(mapRunningEvent) }
+  async getRunningEvent(ownerId:string,id:string) { return mapRunningEventOrNull(await this.db.prepare('SELECT * FROM running_events WHERE id=? AND owner_id=?').bind(id,ownerId).first<Row>()) }
+  async saveRunningEvent(e:RunningEvent) { await this.db.prepare(`INSERT INTO running_events (id,owner_id,name,aliases,edition_year,month_hint,event_date,location,organizer,distance_or_category,registration_url,registration_deadline,source_url,status,date_status,participation_intent,notes,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,aliases=excluded.aliases,edition_year=excluded.edition_year,month_hint=excluded.month_hint,event_date=excluded.event_date,location=excluded.location,organizer=excluded.organizer,distance_or_category=excluded.distance_or_category,registration_url=excluded.registration_url,registration_deadline=excluded.registration_deadline,source_url=excluded.source_url,status=excluded.status,date_status=excluded.date_status,participation_intent=excluded.participation_intent,notes=excluded.notes,updated_at=excluded.updated_at WHERE owner_id=excluded.owner_id`).bind(e.id,e.ownerId,e.name,json(e.aliases),e.editionYear,e.monthHint,e.eventDate,e.location,e.organizer,e.distanceOrCategory,e.registrationUrl,e.registrationDeadline,e.sourceUrl,e.status,e.dateStatus,e.participationIntent,e.notes,e.createdAt,e.updatedAt).run() }
+  async listEventEvidence(ownerId:string,eventId:string) { return (await this.db.prepare('SELECT * FROM event_evidence WHERE owner_id=? AND event_id=? ORDER BY observed_at DESC').bind(ownerId,eventId).all<Row>()).results.map(mapEvidence) }
+  async saveEventEvidence(e:EventEvidence) { await this.db.prepare('INSERT INTO event_evidence (id,owner_id,event_id,evidence_type,evidence_strength,source_url,observed_at,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(e.id,e.ownerId,e.eventId,e.evidenceType,e.evidenceStrength,e.sourceUrl,e.observedAt,e.notes,e.createdAt).run() }
+
+  async getIntegration(ownerId:string,provider:'strava') { return mapIntegration(await this.db.prepare('SELECT * FROM integration_accounts WHERE owner_id=? AND provider=?').bind(ownerId,provider).first<Row>()) }
+  async saveIntegration(a:IntegrationAccount) { await this.db.prepare(`INSERT INTO integration_accounts (id,owner_id,provider,provider_user_id,status,scopes,connected_at,last_synced_at,last_error_code,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,provider) DO UPDATE SET provider_user_id=excluded.provider_user_id,status=excluded.status,scopes=excluded.scopes,connected_at=excluded.connected_at,last_synced_at=excluded.last_synced_at,last_error_code=excluded.last_error_code,updated_at=excluded.updated_at`).bind(a.id,a.ownerId,a.provider,a.providerUserId,a.status,json(a.scopes),a.connectedAt,a.lastSyncedAt,a.lastErrorCode,a.createdAt,a.updatedAt).run() }
+
+  private insertRun(r:Run){return this.db.prepare('INSERT INTO runs (id,owner_id,title,type,outcome,status,priority,next_action,progress,blocker,due_at,tags,focus_date,focus_order,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(r.id,r.ownerId,r.title,r.type,r.outcome,r.status,r.priority,r.nextAction,r.progress,r.blocker,r.dueAt,json(r.tags),r.focusDate,r.focusOrder,r.createdAt,r.updatedAt)}
+  private insertEvent(e:RunEvent){return this.db.prepare('INSERT INTO run_events (id,run_id,owner_id,event_type,previous_state,new_state,metadata,created_at) VALUES (?,?,?,?,?,?,?,?)').bind(e.id,e.runId,e.ownerId,e.eventType,e.previousState,e.newState,json(e.metadata),e.createdAt)}
 }
 
-function mapUser(row: UserRow | null): User | null { return row ? { id: row.id, email: row.email, displayName: row.display_name, passwordHash: row.password_hash, passwordSalt: row.password_salt, createdAt: row.created_at } : null }
-function mapSession(row: SessionRow | null): Session | null { return row ? { id: row.id, ownerId: row.owner_id, tokenHash: row.token_hash, expiresAt: row.expires_at, createdAt: row.created_at } : null }
-function mapRun(row: RunRow | null): Run | null { return row ? mapRunNonNull(row) : null }
-function mapRunNonNull(row: RunRow): Run { let tags: string[] = []; try { const parsed = JSON.parse(row.tags ?? '[]'); if (Array.isArray(parsed)) tags = parsed.filter((tag): tag is string => typeof tag === 'string') } catch { tags = [] } return { id: row.id, ownerId: row.owner_id, title: row.title, type: row.type, outcome: row.outcome, status: row.status, priority: row.priority, nextAction: row.next_action, progress: row.progress, blocker: row.blocker, dueAt: row.due_at, tags, focusDate: row.focus_date, focusOrder: row.focus_order, createdAt: row.created_at, updatedAt: row.updated_at } }
-function mapEvent(row: EventRow): RunEvent { let metadata: Record<string, unknown> = {}; try { metadata = JSON.parse(row.metadata) as Record<string, unknown> } catch { metadata = {} } return { id: row.id, runId: row.run_id, ownerId: row.owner_id, eventType: row.event_type, previousState: row.previous_state, newState: row.new_state, metadata, createdAt: row.created_at } }
+const json=(v:unknown)=>JSON.stringify(v)
+const array=(v:unknown):string[]=>{try{const p=JSON.parse(String(v??'[]'));return Array.isArray(p)?p.filter(x=>typeof x==='string'):[]}catch{return[]}}
+const mapUser=(r:UserRow|null):User|null=>r?{id:r.id,email:r.email,displayName:r.display_name,passwordHash:r.password_hash,passwordSalt:r.password_salt,createdAt:r.created_at}:null
+const mapSession=(r:SessionRow|null):Session|null=>r?{id:r.id,ownerId:r.owner_id,tokenHash:r.token_hash,expiresAt:r.expires_at,createdAt:r.created_at}:null
+const mapRun=(r:RunRow|null):Run|null=>r?mapRunNonNull(r):null
+const mapRunNonNull=(r:RunRow):Run=>({id:r.id,ownerId:r.owner_id,title:r.title,type:r.type,outcome:r.outcome,status:r.status,priority:r.priority,nextAction:r.next_action,progress:r.progress,blocker:r.blocker,dueAt:r.due_at,tags:array(r.tags),focusDate:r.focus_date,focusOrder:r.focus_order,createdAt:r.created_at,updatedAt:r.updated_at})
+const mapEvent=(r:CoreEventRow):RunEvent=>{let metadata={};try{metadata=JSON.parse(r.metadata)}catch{}return{id:r.id,runId:r.run_id,ownerId:r.owner_id,eventType:r.event_type,previousState:r.previous_state,newState:r.new_state,metadata,createdAt:r.created_at}}
+const mapProfile=(r:Row|null):RunnerProfile|null=>r?{id:r.id,ownerId:r.owner_id,displayName:r.display_name,runningArea:r.running_area,preferredDays:array(r.preferred_days),preferredTime:r.preferred_time,preferredDistances:array(r.preferred_distances),primaryGoal:r.primary_goal,preferredEventTypes:array(r.preferred_event_types),runningWithOthersPreference:r.running_with_others_preference,communities:array(r.communities),notes:r.notes,onboardingCompletedAt:r.onboarding_completed_at,createdAt:r.created_at,updatedAt:r.updated_at}:null
+const mapRecurring=(r:Row):RecurringActivity=>({id:r.id,ownerId:r.owner_id,name:r.name,activityType:r.activity_type,recurrenceRule:r.recurrence_rule,usualDay:r.usual_day,usualTime:r.usual_time,usualLocation:r.usual_location,community:r.community,expectedDistanceMeters:r.expected_distance_meters,notes:r.notes,source:r.source,relevanceWeight:r.relevance_weight,active:Boolean(r.active),createdAt:r.created_at,updatedAt:r.updated_at})
+const mapRecurringOrNull=(r:Row|null)=>r?mapRecurring(r):null
+const mapOccurrence=(r:Row):RecurringOccurrence=>({id:r.id,ownerId:r.owner_id,recurringActivityId:r.recurring_activity_id,scheduledAt:r.scheduled_at,status:r.status,linkedRunningActivityId:r.linked_running_activity_id,notes:r.notes,createdAt:r.created_at,updatedAt:r.updated_at})
+const mapActivity=(r:Row):RunningActivity=>({id:r.id,ownerId:r.owner_id,startedAt:r.started_at,endedAt:r.ended_at,durationSeconds:r.duration_seconds,distanceMeters:r.distance_meters,paceSecondsPerKm:r.pace_seconds_per_km,elevationMeters:r.elevation_meters,effort:r.effort,feeling:r.feeling,source:r.source,externalId:r.external_id,eventId:r.event_id,recurringActivityId:r.recurring_activity_id,notes:r.notes,createdAt:r.created_at,updatedAt:r.updated_at})
+const mapActivityOrNull=(r:Row|null)=>r?mapActivity(r):null
+const mapRunningEvent=(r:Row):RunningEvent=>({id:r.id,ownerId:r.owner_id,name:r.name,aliases:array(r.aliases),editionYear:r.edition_year,monthHint:r.month_hint,eventDate:r.event_date,location:r.location,organizer:r.organizer,distanceOrCategory:r.distance_or_category,registrationUrl:r.registration_url,registrationDeadline:r.registration_deadline,sourceUrl:r.source_url,status:r.status,dateStatus:r.date_status,participationIntent:r.participation_intent,notes:r.notes,createdAt:r.created_at,updatedAt:r.updated_at})
+const mapRunningEventOrNull=(r:Row|null)=>r?mapRunningEvent(r):null
+const mapEvidence=(r:Row):EventEvidence=>({id:r.id,ownerId:r.owner_id,eventId:r.event_id,evidenceType:r.evidence_type,evidenceStrength:r.evidence_strength,sourceUrl:r.source_url,observedAt:r.observed_at,notes:r.notes,createdAt:r.created_at})
+const mapIntegration=(r:Row|null):IntegrationAccount|null=>r?{id:r.id,ownerId:r.owner_id,provider:r.provider,providerUserId:r.provider_user_id,status:r.status,scopes:array(r.scopes),connectedAt:r.connected_at,lastSyncedAt:r.last_synced_at,lastErrorCode:r.last_error_code,createdAt:r.created_at,updatedAt:r.updated_at}:null

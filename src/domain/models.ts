@@ -80,3 +80,125 @@ export interface TodayData {
   upcoming: Run[]
   recentChanges: RunEvent[]
 }
+
+export type Provenance = 'user_confirmed' | 'user_provided' | 'local_recorded' | 'authorized_integration' | 'public_source' | 'derived_from_confirmed_data' | 'unverified'
+export type OccurrenceStatus = 'planned' | 'attended' | 'skipped' | 'unknown'
+export type EventEvidenceType = 'prior_participation' | 'instagram_post' | 'instagram_highlight' | 'repost' | 'explicit_confirmation' | 'registration' | 'public_event_listing'
+export type EvidenceStrength = 'weak' | 'moderate' | 'strong' | 'confirmed'
+
+export interface RunnerProfile {
+  id: string
+  ownerId: string
+  displayName: string
+  runningArea: string | null
+  preferredDays: string[]
+  preferredTime: string | null
+  preferredDistances: string[]
+  primaryGoal: string | null
+  preferredEventTypes: string[]
+  runningWithOthersPreference: string | null
+  communities: string[]
+  notes: string | null
+  onboardingCompletedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RecurringActivity {
+  id: string
+  ownerId: string
+  name: string
+  activityType: string
+  recurrenceRule: string
+  usualDay: string | null
+  usualTime: string | null
+  usualLocation: string | null
+  community: string | null
+  expectedDistanceMeters: number | null
+  notes: string | null
+  source: Provenance
+  relevanceWeight: number
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RecurringOccurrence {
+  id: string
+  ownerId: string
+  recurringActivityId: string
+  scheduledAt: string
+  status: OccurrenceStatus
+  linkedRunningActivityId: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RunningActivity {
+  id: string
+  ownerId: string
+  startedAt: string
+  endedAt: string | null
+  durationSeconds: number | null
+  distanceMeters: number | null
+  paceSecondsPerKm: number | null
+  elevationMeters: number | null
+  effort: number | null
+  feeling: string | null
+  source: string
+  externalId: string | null
+  eventId: string | null
+  recurringActivityId: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RunningEvent {
+  id: string
+  ownerId: string
+  name: string
+  aliases: string[]
+  editionYear: number | null
+  monthHint: string | null
+  eventDate: string | null
+  location: string | null
+  organizer: string | null
+  distanceOrCategory: string | null
+  registrationUrl: string | null
+  registrationDeadline: string | null
+  sourceUrl: string | null
+  status: string
+  dateStatus: 'verified' | 'unverified'
+  participationIntent: 'none' | 'interested' | 'planned' | 'confirmed'
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface EventEvidence {
+  id: string
+  ownerId: string
+  eventId: string
+  evidenceType: EventEvidenceType
+  evidenceStrength: EvidenceStrength
+  sourceUrl: string | null
+  observedAt: string
+  notes: string | null
+  createdAt: string
+}
+
+export interface IntegrationAccount {
+  id: string
+  ownerId: string
+  provider: 'strava'
+  providerUserId: string | null
+  status: 'disconnected' | 'connected' | 'error'
+  scopes: string[]
+  connectedAt: string | null
+  lastSyncedAt: string | null
+  lastErrorCode: string | null
+  createdAt: string
+  updatedAt: string
+}

@@ -1,38 +1,35 @@
 # Runner OS
 
-Runner OS is a calm personal execution system for everything a person is actively running. The canonical **Run** remains the only execution entity. Phase 2 adds a lightweight Productivity Layer for daily focus, organization, search, and deterministic due-time awareness without introducing a competing task or project model.
+Runner OS adalah **Personal Running Operating System** privat yang membantu pelari memahami jadwal, rutinitas, riwayat lari, event relevan, persiapan, dan konteks personal tanpa mengubah data yang belum terkonfirmasi menjadi fakta.
 
-## Completed features
+## Fitur yang sudah selesai
 
-### Runner Core
+### Fondasi Phase 1–3
 
-- Email/password registration and login with PBKDF2 password hashes and opaque HTTP-only session cookies.
-- Server-side owner isolation for every Run and Run Event operation.
-- Run creation, detail, metadata editing, next action, progress, blocker, due time, and archive behavior.
-- Domain-enforced lifecycle: `planned → active → paused / blocked → active → completed / archived`.
-- Append-oriented history for creation, metadata, next action, progress, focus, and lifecycle changes.
-- Transactional Run and event writes through Cloudflare D1.
+- Registrasi/login email dan password dengan PBKDF2 100.000 iterasi.
+- Sesi opaque 30 hari di server, cookie host-only `HttpOnly`, `SameSite=Strict`, dan `Secure` pada HTTPS.
+- Owner isolation untuk semua data personal.
+- Runner Core: Run CRUD, lifecycle, next action, progress, blocker, due time, daily focus, tag, pencarian, filter, dan riwayat append-oriented.
+- Security headers, session bootstrap dari server, logout, dan penanganan sesi kedaluwarsa.
 
-### Phase 2 Productivity Layer
+### Phase 4 — Hyper-Personalized Runner OS
 
-- Normalized, deduplicated Run tags (up to 10) for lightweight grouping.
-- A deliberately limited daily focus set of up to three actionable Runs.
-- Server-side search, filtering by status/priority/type/tag, and deterministic sorting by priority/due/update/title.
-- Today decision surface with focused, active, blocked, resumable, overdue, upcoming, priority, and recent-change views.
-- UTC due-time storage and deterministic overdue/upcoming rules; completed and archived Runs are excluded from active overdue work.
-- Improved Run cards and detail view with due state, tags, next action, progress, focus controls, and recovery guidance.
-- Responsive mobile navigation, filters, loading/error/empty states, and accessible modal/dialog labels.
+- Welcome sederhana dengan tindakan utama **Mulai Setup**.
+- Onboarding progresif berbahasa Indonesia untuk nama panggilan, area, hari/waktu lari, jarak, tujuan, jenis event, komunitas terkonfirmasi, preferensi lari bersama, MJW, dan aktivitas mingguan.
+- Setup summary yang dapat diedit sebelum diselesaikan; langkah opsional dapat dilewati.
+- Runner Profile owner-scoped yang dapat diperbarui.
+- Personal Home/cockpit: konteks aktivitas berikutnya, event relevan, aktivitas terakhir, persiapan, dan pintasan Tanya AI.
+- Recurring Activity yang configurable, termasuk **MJW = Mlayu Jumat Wengi**, latihan, coaching, learning, dan preparation.
+- Occurrence/attendance faktual dengan status `planned`, `attended`, `skipped`, atau `unknown`, terpisah dari recurrence.
+- Running Activity terpisah dari Core Run; metrik jarak, durasi, pace, dan elevasi boleh kosong.
+- Idempotensi aktivitas eksternal berdasarkan owner, provider/source, dan external ID.
+- Event dan Event Evidence dengan provenance terpisah, relevance transparan, dan `attendancePredicted: false`.
+- Normalisasi **Skybridge Race Run**; edisi 2026 tetap `November 2026 — tanggal belum terverifikasi` tanpa tanggal rekaan dan tidak diganti dengan KAI Commuter Run Jakarta.
+- Strava connector foundation untuk normalisasi/import completed run dan deduplikasi; UI/status tetap jujur sebagai unavailable sampai OAuth serta penyimpanan token aman tersedia.
+- Tanya AI server-side dengan provider adapter Grok dan context selection minimum-relevant; tidak ada panggilan provider dari browser.
+- UI responsif untuk Home, aktivitas, jadwal, event, profil, integrasi, Tanya AI, serta Runner Core lama.
 
-### Phase 3 Authentication and production hardening
-
-- Cloudflare-compatible PBKDF2 password hashing at the Workers Web Crypto maximum of 100,000 iterations.
-- Opaque 30-day server-side sessions stored as SHA-256 token hashes in D1.
-- Host-only `HttpOnly`, `SameSite=Strict`, `Path=/` cookies; `Secure` is enabled on HTTPS production origins.
-- Server-confirmed session bootstrap after login/registration, explicit expired-session UX, and logout state cleanup.
-- Dynamic security headers on Worker responses and revalidated unversioned static assets to prevent stale auth bundles.
-- Expanded authentication, cookie, expiry, logout, invalid-session, and ownership regression coverage.
-
-## URLs
+## URL
 
 - **Local preview:** `http://localhost:3000`
 - **Health:** `GET /health`
@@ -40,67 +37,95 @@ Runner OS is a calm personal execution system for everything a person is activel
 - **Canonical Pages origin:** https://runner-os.pages.dev
 - **GitHub:** https://github.com/Sparkmind-obp-off/Runner-OS1
 
+URL produksi di atas adalah target deployment yang sudah ada. Status verifikasi deployment Phase 4 dicatat setelah deployment BYOK selesai.
+
 ## API
 
-All successful responses use `{ "data": ... }`. Errors use `{ "error": { "code", "message", "details?" } }`. Cross-owner access fails closed as `NOT_FOUND`.
+Respons sukses memakai `{ "data": ... }`. Respons error memakai `{ "error": { "code", "message", "details?" } }`. Cross-owner access gagal tertutup sebagai `NOT_FOUND`.
 
-Authentication:
+### Authentication
 
 - `POST /api/auth/register` — `{ email, displayName, password }`
 - `POST /api/auth/login` — `{ email, password }`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-Protected Runner Core and productivity routes:
+### Runner Core
 
-- `GET /api/runs` — optional query parameters: `status`, `priority`, `type`, `tag`, `search`, `sort`, `direction`
-- `POST /api/runs` — supports optional `priority`, `nextAction`, `dueAt`, and `tags`
-- `GET|PATCH|DELETE /api/runs/:id` (`DELETE` is safe archive semantics)
-- `PATCH /api/runs/:id/next-action`
-- `PATCH /api/runs/:id/progress`
-- `PATCH /api/runs/:id/focus` — `{ focusDate: "YYYY-MM-DD" | null, focusOrder?: 1 | 2 | 3 | null }`
+- `GET|POST /api/runs`
+- `GET|PATCH|DELETE /api/runs/:id`
+- `PATCH /api/runs/:id/next-action|progress|focus`
 - `POST /api/runs/:id/start|pause|block|resume|complete|archive`
 - `GET /api/runs/:id/history`
 - `GET /api/today?date=YYYY-MM-DD`
 
-## Data architecture
+### Phase 4 personal running
 
-Cloudflare D1 stores:
+- `GET|PUT /api/profile`
+- `GET /api/home`
+- `GET|POST /api/activities`
+- `PUT /api/activities/:id`
+- `GET|POST /api/recurring-activities`
+- `PUT /api/recurring-activities/:id`
+- `GET /api/recurring-activities/occurrences?from=<ISO>&to=<ISO>`
+- `PUT /api/recurring-activities/:id/occurrences`
+- `GET|POST /api/events`
+- `PUT /api/events/:id`
+- `GET /api/events/:id/context`
+- `GET|POST /api/events/:id/evidence`
+- `GET /api/integrations/strava`
+- `POST /api/integrations/strava/connect|disconnect|sync`
+- `POST /api/ai/ask` — `{ question }`
 
-- `users` — identity plus salted PBKDF2 password material;
-- `sessions` — SHA-256 hashes of random opaque tokens;
-- `runs` — canonical owner-scoped state, including JSON tags and optional daily focus fields;
-- `run_events` — append-oriented, owner-scoped history.
+Semua endpoint Phase 4 personal memerlukan sesi dan mengambil owner dari sesi server, bukan dari request body.
+
+## Arsitektur data
+
+Cloudflare D1 menyimpan:
+
+- `users`, `sessions`, `runs`, `run_events` — fondasi Phase 1–3;
+- `runner_profiles` — konteks dan status onboarding;
+- `recurring_activities` — definisi jadwal reusable;
+- `recurring_activity_occurrences` — status aktual setiap occurrence;
+- `running_activities` — sesi lari aktual/manual/impor;
+- `running_events` — event personal/relevan dan status verifikasi;
+- `event_evidence` — provenance sinyal minat/partisipasi;
+- `integration_accounts` — connection/sync status tanpa token browser-readable.
 
 Migrations:
 
-- `0001_runner_core.sql` — Phase 1 identity, sessions, Runs, and event history.
-- `0002_productivity_layer.sql` — tags, focus date/order, and due/focus indexes.
+1. `0001_runner_core.sql`
+2. `0002_productivity_layer.sql`
+3. `0003_phase4_personal_runner.sql`
 
-IDs are UUIDs. Instants are UTC ISO-8601 strings. Daily focus uses a client-local `YYYY-MM-DD` key supplied to the server, while due comparisons use the server-generated UTC instant returned by Today.
+Personal Memory dan full AI transcript tidak dibuat karena structured profile/activity/event data sudah cukup untuk Phase 4 dan menghindari penyimpanan sensitif yang tidak perlu.
 
-## User guide
+## Panduan pengguna
 
-1. Create an account or sign in.
-2. Capture a Run with a title, type, outcome, optional next action, due time, priority, and tags.
-3. Use **Runs** to search, filter, and sort commitments.
-4. Add up to three actionable Runs to **Today focus**.
-5. Open a Run to start it, update its next action/progress, or handle pause/block/recovery.
-6. Use Today to see overdue and upcoming work without completed or archived noise.
-7. Complete the Run and inspect its immutable history timeline.
+1. Buka Runner OS dan pilih **Mulai Setup**, atau **Masuk** jika sudah memiliki akun.
+2. Isi konteks yang berguna; gunakan **Nanti saja** atau **Belum tahu** untuk jawaban opsional.
+3. Tinjau summary lalu selesaikan setup.
+4. Gunakan **Hari ini** untuk melihat konteks paling relevan.
+5. Catat lari aktual di **Riwayat lari**; metrik yang tidak diketahui boleh dibiarkan kosong.
+6. Kelola MJW/latihan berulang dan catat kehadiran faktual di **Jadwal**.
+7. Simpan event serta evidence dengan provenance di **Event**.
+8. Perbarui konteks dan lihat status Strava di **Profil**.
+9. Gunakan **Tanya AI** ketika Grok production secret tersedia; kegagalan provider tidak mengganggu data lokal.
 
 ## Development
 
-Prerequisites: Node.js 20+ and npm.
+Prasyarat: Node.js 20+ dan npm.
 
 ```bash
 npm install
 npm run db:migrate:local
+npm test
+npm run typecheck
 npm run build
-npm run dev
+npm audit
 ```
 
-Sandbox service workflow:
+Sandbox preview:
 
 ```bash
 npm run build
@@ -108,37 +133,35 @@ pm2 start ecosystem.config.cjs
 curl http://localhost:3000/health
 ```
 
-Quality gates:
-
-```bash
-npm test
-npm run typecheck
-npm run build
-npm audit
-```
-
-## Production deployment
-
-1. Supply a Cloudflare API token through the project Deploy panel; never commit it.
-2. Use the configured D1 database `runner-os-core-production` and its binding in `wrangler.jsonc`.
-3. Run `npm run db:migrate:prod`.
-4. Build and deploy Pages project `runner-os` through the BYOK Wrangler workflow.
-5. Keep `runner-os.biz.id` attached to that Pages project; API calls remain relative and same-origin.
-
-Production and preview/custom origins intentionally receive separate host-only session cookies. A login on `runner-os.biz.id` does not authenticate `runner-os.pages.dev`, and vice versa. `.env.example` documents boundaries without values. `.dev.vars`, `.env*`, API tokens, and credentials are git-ignored.
-
-See `docs/15_PHASE_3_STATUS.md` for the authentication architecture, cookie contract, browser matrix, and manual acceptance checklist.
-
-## Not yet implemented
-
-Focus-session logging, goals, activity records, external connectors, autonomous AI actions, team/social features, analytics-heavy dashboards, and complex project-management methods remain deferred. Phase 2 intentionally uses tags and daily focus instead of adding independent Project or Task entities.
-
-## Recommended next sprint
-
-Run the documented Phase 3 acceptance matrix in Firefox, Safari/WebKit, and representative mobile browsers using `https://runner-os.biz.id`. After that operational sign-off, return to product validation before starting any new feature phase.
-
-## Deployment status
+## Deployment
 
 - **Platform:** Cloudflare Pages + Hono + D1
-- **Status:** Phase 3 implementation verified locally; production BYOK deployment and post-deploy checks are recorded in `docs/15_PHASE_3_STATUS.md`
+- **Branch produksi:** `main`
+- **Pages project:** `runner-os`
+- **D1 binding:** `DB` → `runner-os-core-production`
+- **Workflow:** Cloudflare BYOK melalui token di Deploy panel; tidak menggunakan `wrangler login`.
+- Jalankan migration produksi sebelum deployment: `npm run db:migrate:prod`.
+- Optional server secrets: `GROK_API_KEY`, `GROK_MODEL`, `STRAVA_CLIENT_ID`, dan `STRAVA_CLIENT_SECRET`.
+- Secret tidak boleh disimpan dalam Git atau browser.
+
+## Belum diimplementasikan / blocker eksternal
+
+- **Strava live OAuth/sync:** boundary, status, normalizer, import contract, dan deduplikasi sudah tersedia; callback OAuth, revocation provider, serta encrypted token storage diblokir sampai kredensial dan kebijakan penyimpanan token produksi tersedia. Tidak ada sync palsu.
+- **Grok live response:** provider adapter dan endpoint tersedia; tanpa `GROK_API_KEY`, API mengembalikan `AI_PROVIDER_UNAVAILABLE` secara jujur.
+- Tidak ada Strava write-back, autonomous AI mutation, event registration, posting, messaging, payment, community management, social network, atau medical inference.
+- Browser Safari/WebKit dan mobile device nyata tetap membutuhkan verifikasi manual produksi.
+
+## Rekomendasi berikutnya
+
+1. Verifikasi onboarding dan session matrix pada custom domain di Chromium, Firefox, Safari/WebKit, dan browser mobile.
+2. Tentukan penyimpanan token terenkripsi dan OAuth callback policy sebelum mengaktifkan Strava live.
+3. Konfigurasi Grok sebagai Cloudflare Pages secret lalu uji context minimization dengan akun produksi terkontrol.
+4. Tambahkan data event hanya dari runner atau sumber publik yang dapat ditelusuri; pertahankan status unverified jika tanggal belum pasti.
+
+## Status
+
+- **Phase 4 code:** implemented dan terverifikasi lokal melalui automated tests, typecheck, build, local D1 migration, API smoke test, dan browser console check.
+- **Strava live:** blocked oleh kredensial/OAuth token-storage prerequisite.
+- **Grok live:** unverified/blocked tanpa production secret.
+- **Production Phase 4:** menunggu migration dan deployment BYOK pada akhir workflow ini.
 - **Last updated:** 2026-09-17

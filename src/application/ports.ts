@@ -1,4 +1,4 @@
-import type { Run, RunEvent, Session, User } from '../domain/models'
+import type { EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../domain/models'
 
 export interface RunStore {
   createUser(user: User): Promise<void>
@@ -15,6 +15,25 @@ export interface RunStore {
   saveRunWithEvent(run: Run, event: RunEvent): Promise<void>
   listEvents(ownerId: string, runId: string): Promise<RunEvent[]>
   listRecentEvents(ownerId: string, limit: number): Promise<RunEvent[]>
+
+  getProfile(ownerId: string): Promise<RunnerProfile | null>
+  saveProfile(profile: RunnerProfile): Promise<void>
+  listRecurringActivities(ownerId: string): Promise<RecurringActivity[]>
+  getRecurringActivity(ownerId: string, id: string): Promise<RecurringActivity | null>
+  saveRecurringActivity(activity: RecurringActivity): Promise<void>
+  listOccurrences(ownerId: string, from?: string, to?: string): Promise<RecurringOccurrence[]>
+  saveOccurrence(occurrence: RecurringOccurrence): Promise<void>
+  listRunningActivities(ownerId: string): Promise<RunningActivity[]>
+  getRunningActivity(ownerId: string, id: string): Promise<RunningActivity | null>
+  findRunningActivityByExternalId(ownerId: string, source: string, externalId: string): Promise<RunningActivity | null>
+  saveRunningActivity(activity: RunningActivity): Promise<void>
+  listRunningEvents(ownerId: string): Promise<RunningEvent[]>
+  getRunningEvent(ownerId: string, id: string): Promise<RunningEvent | null>
+  saveRunningEvent(event: RunningEvent): Promise<void>
+  listEventEvidence(ownerId: string, eventId: string): Promise<EventEvidence[]>
+  saveEventEvidence(evidence: EventEvidence): Promise<void>
+  getIntegration(ownerId: string, provider: 'strava'): Promise<IntegrationAccount | null>
+  saveIntegration(account: IntegrationAccount): Promise<void>
 }
 
 export interface Runtime {
