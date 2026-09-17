@@ -1,5 +1,5 @@
 # Runner OS — Phase 4 Personalization Addendum
-## MJW (Mlayu Jumat Wengi), Hyper-Personalization, and Grok Console
+## MJW (Mlayu Jumat Wengi), Hyper-Personalization, Weekly Activities, Event Signals, and Grok Console
 
 **Status:** Phase 4 clarification / override addendum
 **Applies to:** `docs/12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md`
@@ -16,7 +16,7 @@ The product should be designed around a simple principle:
 
 > If this runner wants to run, Runner OS should help provide the context, preparation, opportunities, and support needed to make that running experience easier and more personally useful.
 
-This addendum refines the interpretation of the runner's recurring running ritual, personal preferences, and initial AI provider.
+This addendum refines the interpretation of the runner's recurring running ritual, weekly activities, event signals, personal preferences, and initial AI provider.
 
 Where this addendum conflicts with an earlier generic assumption in Phase 4, this addendum takes precedence for the implementation of the intended runner persona.
 
@@ -180,6 +180,121 @@ The frequency pattern is useful for prioritization before sufficient history exi
 
 ---
 
+## 6A. Weekly Activities: Training and Learning
+
+The runner's activity pattern should not be modeled only as races or community events.
+
+A significant part of the runner's recurring activity consists of **weekly training and/or learning activities**. These should be first-class personal activities in Runner OS when confirmed by the runner.
+
+Examples of activity categories:
+
+- running training;
+- structured practice;
+- coaching/training sessions;
+- running-related learning;
+- preparation activities;
+- other recurring weekly activities that support the runner's development.
+
+The system should support recurring weekly activities with:
+
+- `activity_type`;
+- `name`;
+- `recurrence_rule`;
+- `usual_day`;
+- `usual_time`;
+- `location` when confirmed;
+- `status`;
+- `notes`;
+- `source` / provenance.
+
+Important distinction:
+
+**Activity ≠ Event.**
+
+A recurring training/learning session is an **Activity**. A dated race, city run, or organized running occasion is an **Event**.
+
+Runner OS should be able to show both in one personal schedule while preserving the distinction in the underlying model.
+
+The product should progressively learn which weekly activities are actually performed rather than treating every recurring schedule as guaranteed attendance.
+
+---
+
+## 6B. Running Event Intelligence: Strong Personal Signals
+
+Running events should receive more specific treatment because event behavior can provide strong evidence about the runner's actual interests.
+
+Runner OS should distinguish between:
+
+1. **Event discovery** — public events that exist;
+2. **Event relevance** — events that appear relevant to this runner;
+3. **Event interest signal** — evidence that the runner may care about a specific event;
+4. **Event participation history** — confirmed evidence that the runner actually participated;
+5. **Future participation intent** — only confirmed when the runner explicitly states or records it.
+
+### Stronger event signals
+
+For this runner, the following may be stored as progressively stronger signals when supported by available evidence:
+
+- the runner previously participated in the same event;
+- the runner's public Instagram content/Highlight documents prior participation;
+- the runner reposted/shared the upcoming edition;
+- the runner explicitly says they plan to join;
+- the runner registers or otherwise confirms participation through an authorized source.
+
+A repost/share is a **positive interest signal**, not proof of registration or future attendance.
+
+Prior participation in the same recurring event is also a strong historical relevance signal, but must not be converted into certainty that the runner will participate again.
+
+### Example: KAI-related running event
+
+The runner has a specific interest signal around a **KAI-related running event** expected to recur, with the runner having:
+
+- previously participated in an earlier edition according to the runner's known/public history;
+- public Instagram evidence such as a prior post/highlight associated with the event;
+- and a current-edition repost/share that may indicate renewed interest.
+
+Current public search confirms a **KAI Commuter Run 2026** organized by KAI Commuter, scheduled for **4 October 2026 in Jakarta**, 5 km, at BNI City/Sudirman. The official event listing describes it as a KAI Commuter running program. citeturn1search3
+
+However, the current public sources reviewed do **not** establish a November 2026 KAI running event with enough confidence to hard-code a November date into Runner OS. Therefore:
+
+- store the KAI event as a **candidate/interest signal** until the exact event and date are verified;
+- do not invent a November date;
+- do not state that the runner will attend;
+- if a later authoritative/public event source confirms the exact November event, update the event record and provenance;
+- if the runner explicitly confirms participation, upgrade the status to planned/confirmed according to the product model.
+
+This is intentionally more precise than a generic "upcoming race" card.
+
+### Event evidence model
+
+For important recurring events, support evidence/provenance such as:
+
+- `event_id`;
+- `event_name`;
+- `edition_year`;
+- `event_date`;
+- `location`;
+- `organizer`;
+- `source_url`;
+- `evidence_type` (`prior_participation`, `instagram_post`, `instagram_highlight`, `repost`, `explicit_confirmation`, `registration`, `public_event_listing`);
+- `evidence_strength` (`weak`, `moderate`, `strong`, `confirmed`);
+- `observed_at`;
+- `notes`.
+
+The system should preserve the difference between **evidence of interest** and **proof of participation**.
+
+### Event prioritization principle
+
+For the personal Home/event layer, a specific event with multiple independent positive signals may deserve more attention than a random city run found through generic event discovery.
+
+Example priority logic:
+
+> Prior participation + current repost + same recurring event → high personal relevance signal.
+
+This is a relevance rule, **not a prediction of attendance**.
+
+---
+
 ## 7. Hyper-Personalization Is the Core Product Requirement
 
 Runner OS should not merely provide generic running features.
@@ -189,8 +304,8 @@ It should progressively become a personal system that understands the runner thr
 1. explicit onboarding answers;
 2. confirmed personal preferences;
 3. actual running/activity history;
-4. recurring activities such as MJW;
-5. upcoming events;
+4. recurring activities such as MJW and weekly training/learning;
+5. upcoming events and event-interest signals;
 6. authorized integrations such as Strava;
 7. relevant public running/event information;
 8. the runner's conversations with Tanya AI.
@@ -241,8 +356,8 @@ For questions about the runner's life, prioritize relevant context in this order
 1. current confirmed Runner OS data;
 2. confirmed personal preferences;
 3. actual recorded running/activity history;
-4. confirmed recurring activities such as MJW;
-5. upcoming events;
+4. confirmed recurring activities such as MJW and weekly training/learning;
+5. event-interest signals and upcoming events;
 6. authorized Strava data;
 7. relevant public community/event information;
 8. general AI knowledge/suggestions.
@@ -257,6 +372,8 @@ Good behavior:
 
 - inspect confirmed recurring activities and schedule;
 - identify MJW if the date matches its configured recurrence;
+- identify relevant weekly training/learning activities;
+- surface important event conflicts or opportunities;
 - mention uncertainty if attendance is not confirmed;
 - answer in simple Indonesian.
 
@@ -265,7 +382,8 @@ Bad behavior:
 - assume the runner definitely attends;
 - invent an MJW schedule;
 - claim private community information;
-- fabricate a Strava activity.
+- fabricate a Strava activity;
+- treat an Instagram repost as proof of registration.
 
 ---
 
@@ -315,9 +433,13 @@ For the current Phase 4 direction, prioritize:
 - hyper-personalized onboarding;
 - running-with-others preference when confirmed;
 - MJW as a high-relevance recurring personal activity;
+- weekly training/learning activities as recurring personal context;
 - attendance tracking without assuming certainty;
 - distinction between attendance and community involvement;
-- Home surfacing of relevant MJW occurrences;
+- distinction between Activity and Event;
+- event-interest signals with provenance;
+- stronger treatment of events with prior participation and current positive signals;
+- Home surfacing of relevant MJW occurrences and personally relevant events;
 - running history and upcoming context;
 - Tanya AI using confirmed personal context;
 - initial Grok provider boundary;
