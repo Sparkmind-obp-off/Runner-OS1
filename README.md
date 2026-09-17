@@ -46,7 +46,7 @@ Runner OS adalah **Personal Running Operating System** privat yang membantu pela
 - **Canonical Pages origin:** https://runner-os.pages.dev
 - **GitHub:** https://github.com/Sparkmind-obp-off/Runner-OS1
 
-URL produksi di atas adalah target deployment yang sudah ada. Status verifikasi deployment Phase 4 dicatat setelah deployment BYOK selesai.
+Deployment Phase 5 telah dipublikasikan melalui Cloudflare BYOK dan diverifikasi pada canonical Pages origin serta custom domain. Deployment-specific preview: `https://21fd46cf.runner-os.pages.dev`.
 
 ## API
 
@@ -158,7 +158,7 @@ curl http://localhost:3000/health
 ## Belum diimplementasikan / blocker eksternal
 
 - **Strava live OAuth/sync:** boundary, status, normalizer, import contract, dan deduplikasi sudah tersedia; callback OAuth, revocation provider, serta encrypted token storage diblokir sampai kredensial dan kebijakan penyimpanan token produksi tersedia. Tidak ada sync palsu.
-- **Groq live response:** adapter, application service, endpoint, mock tests, dan error normalization tersedia; tanpa `GROQ_API_KEY`, API mengembalikan `AI_PROVIDER_UNAVAILABLE` secara jujur. Live provider belum boleh dianggap terverifikasi sampai secret produksi dikonfigurasi manual dan endpoint diuji.
+- **Groq live response:** adapter, application service, endpoint, mock tests, dan error normalization tersedia. Cloudflare melaporkan nama secret `GROQ_API_KEY` sudah terkonfigurasi secara encrypted, tetapi nilai secret tidak dibaca atau diubah pada workflow ini. Live provider belum boleh dianggap terverifikasi sampai pemilik menjalankan authenticated safe-prompt test.
 - Tidak ada Strava write-back, autonomous AI mutation, event registration, posting, messaging, payment, community management, social network, atau medical inference.
 - Browser Safari/WebKit dan mobile device nyata tetap membutuhkan verifikasi manual produksi.
 
@@ -174,6 +174,6 @@ curl http://localhost:3000/health
 - **Phase 1–5 code:** implemented dan terverifikasi lokal: 67/67 automated tests lulus, typecheck lulus, production build lulus, tiga migration D1 lulus pada database lokal bersih, dependency audit menemukan 0 vulnerability, API smoke test lulus, dan browser console tidak memiliki error.
 - **Strava live:** blocked oleh kredensial/OAuth token-storage prerequisite.
 - **Groq live:** unverified/blocked sampai pemilik mengonfigurasi `GROQ_API_KEY` secara manual dan menjalankan live test.
-- **Production Phase 5:** siap untuk deployment Cloudflare BYOK; status URL produksi diperbarui setelah deployment selesai. Live AI tetap membutuhkan konfigurasi secret manual.
+- **Production Phase 5:** deployed via Cloudflare BYOK ke `runner-os`; `/health`, static asset, unauthenticated AI rejection, canonical Pages origin, deployment preview, dan custom domain telah diverifikasi. Live authenticated Groq response belum diuji pada workflow ini.
 - **Lint:** tidak ada script lint terpisah; quality gate statis menggunakan TypeScript `tsc --noEmit`.
 - **Last updated:** 2026-09-17
