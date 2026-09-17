@@ -28,7 +28,7 @@ export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(e
       c.header('X-Frame-Options', 'DENY')
       c.header('Referrer-Policy', 'no-referrer')
       c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-      c.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+      c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
       if (isSecureRequest(c.req.url)) c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     }
   })
