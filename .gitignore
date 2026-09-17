@@ -6,6 +6,9 @@ dist/
 .env.*
 !.env.example
 coverage/
+.pm2/
+pids/
+logs/
 *.log
 .DS_Store
 *.tar.gz

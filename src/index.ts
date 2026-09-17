@@ -5,21 +5,25 @@ import { AuthService, type PublicUser } from './application/auth-service'
 import type { RunStore } from './application/ports'
 import { RunService } from './application/run-service'
 import { Phase4Service } from './application/phase4-service'
-import { GrokProvider, selectAIContext } from './application/ai-service'
+import { AIApplicationService, GroqProvider, type AIProvider } from './application/ai-service'
 import { AppError } from './domain/errors'
 import { D1RunStore } from './infrastructure/d1-store'
 import { activitySchema, aiQuestionSchema, blockSchema, createRunSchema, evidenceSchema, focusSchema, listRunsSchema, loginSchema, nextActionSchema, occurrenceQuerySchema, occurrenceSchema, profileSchema, progressSchema, recurringSchema, registerSchema, runningEventSchema, todayQuerySchema, updateRunSchema } from './http/schemas'
 import { renderShell } from './view'
 
-type Bindings = { DB: D1Database; GROK_API_KEY?: string; GROK_MODEL?: string; STRAVA_CLIENT_ID?: string; STRAVA_CLIENT_SECRET?: string }
+type Bindings = { DB: D1Database; GROQ_API_KEY?: string; GROQ_MODEL?: string; STRAVA_CLIENT_ID?: string; STRAVA_CLIENT_SECRET?: string }
 type Variables = { user: PublicUser; store: RunStore }
 type AppEnv = { Bindings: Bindings; Variables: Variables }
 
 const SESSION_COOKIE = 'runner_session'
 
 type StoreFactory = (env: Bindings) => RunStore
+type AIProviderFactory = (env: Bindings) => AIProvider | null
 
-export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(env.DB)) {
+export function createApp(
+  storeFactory: StoreFactory = (env) => new D1RunStore(env.DB),
+  aiProviderFactory: AIProviderFactory = (env) => env?.GROQ_API_KEY ? new GroqProvider(env.GROQ_API_KEY, env.GROQ_MODEL) : null,
+) {
   const app = new Hono<AppEnv>()
 
   app.use('*', async (c, next) => {
@@ -148,12 +152,10 @@ export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(e
   app.post('/api/integrations/strava/sync', async () => { throw new AppError('PROVIDER_UNAVAILABLE','Sinkronisasi Strava belum tersedia. Tidak ada data aktivitas yang dibuat.',503) })
 
   app.post('/api/ai/ask', async (c) => {
-    const { question } = await parseBody(c, aiQuestionSchema)
+    const { question } = await parseBody(c, aiQuestionSchema, 'AI_INVALID_REQUEST')
     const env = c.env ?? ({} as Bindings)
-    if (!env.GROK_API_KEY) throw new AppError('AI_PROVIDER_UNAVAILABLE','Tanya AI belum tersedia karena akses Grok belum dikonfigurasi.',503)
-    const context = await selectAIContext(c.get('store'), c.get('user').id, question)
-    const answer = await new GrokProvider(env.GROK_API_KEY, env.GROK_MODEL).answer(question, context)
-    return c.json({ data: { answer, provider:'grok', contextPolicy:'minimum_relevant' } })
+    const result = await new AIApplicationService(c.get('store'), aiProviderFactory(env)).ask(c.get('user').id, question)
+    return c.json({ data: result })
   })
 
   app.get('/health', (c) => c.json({ status: 'ok' }))
@@ -185,11 +187,11 @@ function parseQuery<T>(raw: unknown, schema: ZodSchema<T>): T {
   return parsed.data
 }
 
-async function parseBody<T>(c: { req: { json: () => Promise<unknown> } }, schema: ZodSchema<T>): Promise<T> {
+async function parseBody<T>(c: { req: { json: () => Promise<unknown> } }, schema: ZodSchema<T>, errorCode: 'VALIDATION_ERROR' | 'AI_INVALID_REQUEST' = 'VALIDATION_ERROR'): Promise<T> {
   let raw: unknown
-  try { raw = await c.req.json() } catch { throw new AppError('VALIDATION_ERROR', 'Request body must be valid JSON', 400) }
+  try { raw = await c.req.json() } catch { throw new AppError(errorCode, 'Request body must be valid JSON', 400) }
   const parsed = schema.safeParse(raw)
-  if (!parsed.success) throw new AppError('VALIDATION_ERROR', 'Request validation failed', 400, parsed.error.flatten())
+  if (!parsed.success) throw new AppError(errorCode, 'Request validation failed', 400, parsed.error.flatten())
   return parsed.data
 }
 

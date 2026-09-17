@@ -2,7 +2,7 @@
 
 **Status:** Implementation contract
 **Applies to:** Phase 4 Hyper-Personalized Runner OS
-**Depends on:** `03_ARCHITECTURE_BLUEPRINT.md`, `04_RUNNER_CORE_DATA_MODEL.md`, `06_CONNECTOR_CONTRACT.md`, `07_SECURITY_AND_OWNERSHIP.md`, `12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md`, `12A_PHASE_4_PERSONALIZATION_ADDENDUM_MJB_AND_GROK.md`, `12B_SKYBRIDGE_EVENT_CLARIFICATION.md`
+**Depends on:** `03_ARCHITECTURE_BLUEPRINT.md`, `04_RUNNER_CORE_DATA_MODEL.md`, `06_CONNECTOR_CONTRACT.md`, `07_SECURITY_AND_OWNERSHIP.md`, `12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md`, `12A_PHASE_4_PERSONALIZATION_ADDENDUM_MJB_AND_GROQ.md`, `12B_SKYBRIDGE_EVENT_CLARIFICATION.md`
 
 ## 0. Purpose
 
@@ -23,7 +23,7 @@ The following rules are mandatory:
 1. Runner Core remains domain-neutral and canonical for execution state.
 2. Phase 2 productivity behavior remains intact.
 3. Phase 3 authentication/session behavior remains intact.
-4. Phase 4 feature modules depend on Core; Core must not depend on Strava, Grok, Instagram, MJW, or any other provider/community.
+4. Phase 4 feature modules depend on Core; Core must not depend on Strava, Groq, Instagram, MJW, or any other provider/community.
 5. External data enters through explicit connector/source boundaries.
 6. All user-owned Phase 4 records are owner-scoped server-side.
 7. Provider credentials and tokens are server-side only.
@@ -404,9 +404,9 @@ Write-back is not required for the first Phase 4 implementation. If considered l
 
 ---
 
-## 10. AI / Grok Architecture Boundary
+## 10. AI / Groq Architecture Boundary
 
-The chatbot must not call Grok directly from browser code.
+The chatbot must not call Groq directly from browser code.
 
 Required conceptual flow:
 
@@ -419,7 +419,7 @@ Context Selection Layer
    ↓
 Provider Adapter
    ↓
-Grok API (initial provider, if available)
+Groq API (initial provider, if available)
 ```
 
 The context selector retrieves only data relevant to the current question.
@@ -439,7 +439,7 @@ Do not send the complete personal database to the provider by default.
 
 Provider failure must degrade gracefully and must never expose credentials or internal errors to the browser.
 
-Grok is an adapter/provider choice, not a domain dependency.
+Groq is an adapter/provider choice, not a domain dependency.
 
 If no usable production API credential/endpoint exists, keep the adapter boundary and document the blocker rather than faking live AI.
 
@@ -544,7 +544,7 @@ External failure must not corrupt local canonical data.
 Examples:
 
 - Strava unavailable → local Runner OS remains usable.
-- Grok unavailable → Tanya AI shows a clear unavailable/provider error state.
+- Groq unavailable → Tanya AI shows a clear unavailable/provider error state.
 - Event source stale → preserve event but mark verification/freshness appropriately.
 - Duplicate external activity → idempotency prevents duplicate canonical activity.
 - Invalid recurrence → reject safely without corrupting existing recurrence.
@@ -585,7 +585,7 @@ Before considering the data architecture complete:
 - [ ] Skybridge 2026 date remains unverified until sourced.
 - [ ] KAI Commuter Run Jakarta is not substituted for Skybridge Race Run.
 - [ ] Strava is behind the connector boundary.
-- [ ] Grok is behind the provider boundary.
+- [ ] Groq is behind the provider boundary.
 - [ ] AI context is minimized.
 - [ ] Secrets remain server-side.
 - [ ] Every user-owned query/write is owner-scoped.

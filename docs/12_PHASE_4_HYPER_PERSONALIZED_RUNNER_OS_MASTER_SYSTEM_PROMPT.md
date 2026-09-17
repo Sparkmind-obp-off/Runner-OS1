@@ -468,7 +468,7 @@ A provider interface may conceptually support:
 - provider error handling;
 - usage metadata where available.
 
-**Grok** may be used as one external provider if the user chooses it and the required API access is available.
+**Groq** may be used as one external provider if the user chooses it and the required API access is available.
 
 Future providers may be added without rewriting the chatbot domain.
 
@@ -779,7 +779,7 @@ Do not implement write-back until read/import behavior is reliable.
 - conversation model if persistence is needed;
 - context selection layer;
 - provider abstraction;
-- one external provider such as Grok when credentials/access are available;
+- one external provider such as Groq when credentials/access are available;
 - safe read/assistive tools;
 - explicit action boundaries.
 
@@ -916,7 +916,7 @@ The AI must clearly separate factual personal data from generated suggestions.
 
 ## 24. External Provider Rules
 
-If Grok or another external AI provider is used:
+If Groq or another external AI provider is used:
 
 - API credentials remain server-side;
 - secrets come from environment/secret management;
@@ -1062,7 +1062,7 @@ Phase 4 is accepted only when:
 11. Public community context is separated from private personal data.
 12. Strava is treated as an optional authorized integration.
 13. AI Companion is treated as an assistive layer, not an uncontrolled autonomous agent.
-14. Grok or another provider can be integrated behind a provider abstraction without hard-coding secrets or vendor logic into the core domain.
+14. Groq or another provider can be integrated behind a provider abstraction without hard-coding secrets or vendor logic into the core domain.
 15. AI context is selected deliberately and does not leak data across users.
 16. No invented personal history or unsupported event information is presented as fact.
 17. Branding/logo work does not block product functionality.
@@ -1101,7 +1101,7 @@ Do not scrape private social data.
 
 Do not expose secrets.
 
-Do not make Grok or another AI provider a hard dependency.
+Do not make Groq or another AI provider a hard dependency.
 
 Do not add large branding/logo work yet.
 

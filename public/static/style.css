@@ -163,6 +163,10 @@ h3 { margin: 0; letter-spacing: -.02em; }
 .activity-list { max-width:90rem; margin:1.25rem auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
 .ai-console { max-width:50rem; margin:auto; }
 .ai-answer { margin-top:1rem; padding:1rem; min-height:5rem; border-radius:12px; background:var(--paper); white-space:pre-wrap; }
+.ai-answer p { margin-top:0; line-height:1.65; }
+.ai-suggestion { margin-top:1rem; padding:1rem; border:1px solid #b9d5c6; border-radius:12px; background:#f8fff9; white-space:normal; }
+.ai-suggestion ul { margin:.7rem 0; padding-left:1.25rem; line-height:1.6; }
+.ai-suggestion small { color:var(--muted); }
 .profile-grid { max-width:90rem; margin:auto; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(17rem,.6fr); gap:1.25rem; align-items:start; }
 .integration-card { position:sticky; top:1.5rem; }
 .truth-note { display:block; margin-top:.65rem; color:var(--muted); line-height:1.5; }

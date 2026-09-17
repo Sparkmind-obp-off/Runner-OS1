@@ -35,7 +35,7 @@ Before writing code, read these documents in order:
 9. `docs/10_TESTING_AND_ACCEPTANCE.md`
 10. `docs/11_PHASE_3_MASTER_SYSTEM_PROMPT.md`
 11. `docs/12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md`
-12. `docs/12A_PHASE_4_PERSONALIZATION_ADDENDUM_MJB_AND_GROK.md`
+12. `docs/12A_PHASE_4_PERSONALIZATION_ADDENDUM_MJB_AND_GROQ.md`
 13. `docs/12B_SKYBRIDGE_EVENT_CLARIFICATION.md`
 14. `docs/13_PHASE_4_DATA_AND_ARCHITECTURE_CONTRACT.md`
 
@@ -450,11 +450,11 @@ If production credentials/API access are unavailable, implement the connector bo
 
 ---
 
-## 15. TANYA AI / GROK
+## 15. TANYA AI / GROQ
 
 Implement a simple **Tanya AI** experience if the current repository can support it without destabilizing the core.
 
-Initial provider: **Grok**, behind a provider adapter.
+Initial provider: **Groq**, behind a provider adapter.
 
 Required architecture:
 
@@ -465,20 +465,20 @@ Authenticated AI Application Service
    ↓
 Context Selection Layer
    ↓
-Grok Provider Adapter
+Groq Provider Adapter
    ↓
-Grok API
+Groq API
 ```
 
-Never call Grok directly from browser code.
+Never call Groq directly from browser code.
 
 Never commit API keys.
 
 Credentials are server-side environment/deployment secrets.
 
-If a usable production Grok API endpoint/credential is unavailable, show a clear provider-unavailable state and document the blocker.
+If a usable production Groq API endpoint/credential is unavailable, show a clear provider-unavailable state and document the blocker.
 
-Do not fake AI responses as if they came from live Grok.
+Do not fake AI responses as if they came from live Groq.
 
 ---
 
@@ -710,13 +710,13 @@ Do not invent a parallel API architecture.
 
 If provider credentials are unavailable, stop at a truthful integration boundary rather than fabricating live synchronization.
 
-### Sprint 4.5 — Tanya AI / Grok Foundation
+### Sprint 4.5 — Tanya AI / Groq Foundation
 
 - Tanya AI UI;
 - authenticated server endpoint;
 - context selector;
 - provider interface;
-- Grok adapter;
+- Groq adapter;
 - concise Indonesian response handling;
 - unavailable-provider handling;
 - tests for authorization/context boundaries.
@@ -806,7 +806,7 @@ At minimum test:
 - owner-scoped context;
 - context minimization;
 - provider abstraction;
-- Grok unavailable state;
+- Groq unavailable state;
 - no secret leakage;
 - no fabricated personal history;
 - no unauthorized mutations.
@@ -877,7 +877,7 @@ Never label a production behavior verified merely because local development work
 - [ ] Tanya AI is accessible to an authenticated owner.
 - [ ] Relevant personal context is used.
 - [ ] Irrelevant personal data is not sent by default.
-- [ ] Grok failure is truthful and graceful.
+- [ ] Groq failure is truthful and graceful.
 - [ ] Personal history is never fabricated.
 - [ ] Consequential actions require confirmation.
 
@@ -935,7 +935,7 @@ When something cannot be implemented safely because a credential, API, provider 
 
 Examples:
 
-- no Grok API access → provider boundary + unavailable state;
+- no Groq API access → provider boundary + unavailable state;
 - no Strava credentials → connector boundary + connection UI + no fake sync;
 - event date not verified → nullable date + unverified status;
 - ambiguous data model → inspect current schema and choose smallest safe extension.
@@ -956,7 +956,7 @@ Phase 4 is implementation-complete only when:
 8. events and event evidence preserve provenance;
 9. Skybridge clarification is respected;
 10. Strava boundary is implemented honestly;
-11. Tanya AI/Grok boundary is implemented honestly where access permits;
+11. Tanya AI/Groq boundary is implemented honestly where access permits;
 12. AI context is owner-scoped and minimized;
 13. security/ownership tests pass;
 14. existing Phase 1–3 tests/regressions pass;

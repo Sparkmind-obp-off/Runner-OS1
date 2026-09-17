@@ -1,7 +1,7 @@
 # Runner OS — Skybridge Event Clarification
 
 **Status:** Phase 4 event-intelligence clarification / override
-**Applies to:** `docs/12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md` and `docs/12A_PHASE_4_PERSONALIZATION_ADDENDUM_MJB_AND_GROK.md`
+**Applies to:** `docs/12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md` and `docs/12A_PHASE_4_PERSONALIZATION_ADDENDUM_MJB_AND_GROQ.md`
 
 ---
 

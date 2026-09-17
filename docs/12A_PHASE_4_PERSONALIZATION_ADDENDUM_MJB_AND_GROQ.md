@@ -1,5 +1,5 @@
 # Runner OS — Phase 4 Personalization Addendum
-## MJW (Mlayu Jumat Wengi), Hyper-Personalization, Weekly Activities, Event Signals, and Grok Console
+## MJW (Mlayu Jumat Wengi), Hyper-Personalization, Weekly Activities, Event Signals, and Groq
 
 **Status:** Phase 4 clarification / override addendum
 **Applies to:** `docs/12_PHASE_4_HYPER_PERSONALIZED_RUNNER_OS_MASTER_SYSTEM_PROMPT.md`
@@ -329,9 +329,9 @@ The goal is **personal usefulness**, not feature count.
 
 ---
 
-## 8. Initial AI Provider: Grok Console
+## 8. Initial AI Provider: Groq
 
-For the initial implementation, the intended AI provider is **Grok through the user's chosen/free Grok Console access**.
+For the current implementation, the intended AI provider is **Groq through its server-side OpenAI-compatible API**, configured with `GROQ_API_KEY` outside source control.
 
 Keep a small provider boundary so the provider can be replaced later without rewriting the Runner OS chatbot domain, but do not build complex multi-provider infrastructure now.
 
@@ -345,7 +345,7 @@ Initial implementation priority:
 6. no API keys committed to GitHub;
 7. minimal provider architecture.
 
-If the chosen Grok Console access does not expose a usable production API credential or endpoint for the deployed environment, do not fake the integration. Keep the provider boundary and document the exact blocker.
+If `GROQ_API_KEY` is not configured in the production deployment environment, do not fake the integration. Keep the provider boundary and expose the honest provider-unavailable state.
 
 ---
 
@@ -442,7 +442,7 @@ For the current Phase 4 direction, prioritize:
 - Home surfacing of relevant MJW occurrences and personally relevant events;
 - running history and upcoming context;
 - Tanya AI using confirmed personal context;
-- initial Grok provider boundary;
+- initial Groq provider boundary;
 - simple graceful provider failure handling;
 - progressive personalization based on actual usage.
 

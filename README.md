@@ -26,8 +26,17 @@ Runner OS adalah **Personal Running Operating System** privat yang membantu pela
 - Event dan Event Evidence dengan provenance terpisah, relevance transparan, dan `attendancePredicted: false`.
 - Normalisasi **Skybridge Race Run**; edisi 2026 tetap `November 2026 — tanggal belum terverifikasi` tanpa tanggal rekaan dan tidak diganti dengan KAI Commuter Run Jakarta.
 - Strava connector foundation untuk normalisasi/import completed run dan deduplikasi; UI/status tetap jujur sebagai unavailable sampai OAuth serta penyimpanan token aman tersedia.
-- Tanya AI server-side dengan provider adapter Grok dan context selection minimum-relevant; tidak ada panggilan provider dari browser.
+- Tanya AI server-side dengan context selection minimum-relevant; tidak ada panggilan provider dari browser.
 - UI responsif untuk Home, aktivitas, jadwal, event, profil, integrasi, Tanya AI, serta Runner Core lama.
+
+### Phase 5 — Assistive Intelligence
+
+- Groq menjadi provider produksi awal melalui adapter `AIProvider`; domain Runner OS tetap provider-agnostic.
+- `GROQ_API_KEY` hanya dibaca di Worker dan tidak pernah dikirim ke browser, D1, respons API, atau log.
+- Context selection owner-scoped, purpose-limited, bounded, provenance-aware, dan memisahkan untrusted stored text sebagai data saja.
+- Tanya AI mendukung tanya jawab, ringkasan, klarifikasi, persiapan, latihan, dan recovery non-medis.
+- Structured suggestion selalu berstatus saran untuk ditinjau; endpoint AI tidak melakukan mutation dan mengembalikan `actionsExecuted: []`.
+- Missing secret, timeout, rate limit, dan provider failure memakai error stabil yang jujur dan aman.
 
 ## URL
 
@@ -75,7 +84,7 @@ Respons sukses memakai `{ "data": ... }`. Respons error memakai `{ "error": { "c
 - `GET|POST /api/events/:id/evidence`
 - `GET /api/integrations/strava`
 - `POST /api/integrations/strava/connect|disconnect|sync`
-- `POST /api/ai/ask` — `{ question }`
+- `POST /api/ai/ask` — `{ question }`; respons berisi jawaban, optional structured suggestion, provider, context policy, dan `actionsExecuted: []`
 
 Semua endpoint Phase 4 personal memerlukan sesi dan mengambil owner dari sesi server, bukan dari request body.
 
@@ -110,7 +119,7 @@ Personal Memory dan full AI transcript tidak dibuat karena structured profile/ac
 6. Kelola MJW/latihan berulang dan catat kehadiran faktual di **Jadwal**.
 7. Simpan event serta evidence dengan provenance di **Event**.
 8. Perbarui konteks dan lihat status Strava di **Profil**.
-9. Gunakan **Tanya AI** ketika Grok production secret tersedia; kegagalan provider tidak mengganggu data lokal.
+9. Gunakan **Tanya AI** setelah `GROQ_API_KEY` dikonfigurasi secara privat di Cloudflare; tinjau setiap saran sebelum bertindak. Kegagalan provider tidak mengganggu data lokal.
 
 ## Development
 
@@ -141,13 +150,15 @@ curl http://localhost:3000/health
 - **D1 binding:** `DB` → `runner-os-core-production`
 - **Workflow:** Cloudflare BYOK melalui token di Deploy panel; tidak menggunakan `wrangler login`.
 - Jalankan migration produksi sebelum deployment: `npm run db:migrate:prod`.
-- Optional server secrets: `GROK_API_KEY`, `GROK_MODEL`, `STRAVA_CLIENT_ID`, dan `STRAVA_CLIENT_SECRET`.
-- Secret tidak boleh disimpan dalam Git atau browser.
+- Server-only AI secret: `GROQ_API_KEY`; optional model configuration: `GROQ_MODEL`.
+- Default adapter model saat `GROQ_MODEL` tidak diatur: `llama-3.3-70b-versatile`; model dapat diganti dari deployment environment tanpa mengubah domain logic.
+- Optional Strava secrets: `STRAVA_CLIENT_ID` dan `STRAVA_CLIENT_SECRET`.
+- Secret dikonfigurasi di luar Git/source code. Genspark tidak membutuhkan atau menerima nilai secret Groq.
 
 ## Belum diimplementasikan / blocker eksternal
 
 - **Strava live OAuth/sync:** boundary, status, normalizer, import contract, dan deduplikasi sudah tersedia; callback OAuth, revocation provider, serta encrypted token storage diblokir sampai kredensial dan kebijakan penyimpanan token produksi tersedia. Tidak ada sync palsu.
-- **Grok live response:** provider adapter dan endpoint tersedia; tanpa `GROK_API_KEY`, API mengembalikan `AI_PROVIDER_UNAVAILABLE` secara jujur.
+- **Groq live response:** adapter, application service, endpoint, mock tests, dan error normalization tersedia; tanpa `GROQ_API_KEY`, API mengembalikan `AI_PROVIDER_UNAVAILABLE` secara jujur. Live provider belum boleh dianggap terverifikasi sampai secret produksi dikonfigurasi manual dan endpoint diuji.
 - Tidak ada Strava write-back, autonomous AI mutation, event registration, posting, messaging, payment, community management, social network, atau medical inference.
 - Browser Safari/WebKit dan mobile device nyata tetap membutuhkan verifikasi manual produksi.
 
@@ -155,13 +166,14 @@ curl http://localhost:3000/health
 
 1. Verifikasi onboarding dan session matrix pada custom domain di Chromium, Firefox, Safari/WebKit, dan browser mobile.
 2. Tentukan penyimpanan token terenkripsi dan OAuth callback policy sebelum mengaktifkan Strava live.
-3. Konfigurasi Grok sebagai Cloudflare Pages secret lalu uji context minimization dengan akun produksi terkontrol.
+3. Pemilik mengonfigurasi `GROQ_API_KEY` secara manual sebagai Cloudflare Pages secret, lalu menguji live path dengan akun produksi terkontrol tanpa menyalin secret ke source atau chat.
 4. Tambahkan data event hanya dari runner atau sumber publik yang dapat ditelusuri; pertahankan status unverified jika tanggal belum pasti.
 
 ## Status
 
-- **Phase 4 code:** implemented dan terverifikasi lokal melalui automated tests, typecheck, build, local D1 migration, API smoke test, dan browser console check.
+- **Phase 1–5 code:** implemented dan terverifikasi lokal: 67/67 automated tests lulus, typecheck lulus, production build lulus, tiga migration D1 lulus pada database lokal bersih, dependency audit menemukan 0 vulnerability, API smoke test lulus, dan browser console tidak memiliki error.
 - **Strava live:** blocked oleh kredensial/OAuth token-storage prerequisite.
-- **Grok live:** unverified/blocked tanpa production secret.
-- **Production Phase 4:** menunggu migration dan deployment BYOK pada akhir workflow ini.
+- **Groq live:** unverified/blocked sampai pemilik mengonfigurasi `GROQ_API_KEY` secara manual dan menjalankan live test.
+- **Production Phase 5:** siap untuk deployment Cloudflare BYOK; status URL produksi diperbarui setelah deployment selesai. Live AI tetap membutuhkan konfigurasi secret manual.
+- **Lint:** tidak ada script lint terpisah; quality gate statis menggunakan TypeScript `tsc --noEmit`.
 - **Last updated:** 2026-09-17
