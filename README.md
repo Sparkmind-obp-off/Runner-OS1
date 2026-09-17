@@ -27,7 +27,7 @@ Runner OS is a calm personal execution system for everything a person is activel
 
 - **Local preview:** `http://localhost:3000`
 - **Health:** `GET /health`
-- **Production:** pending Cloudflare BYOK deployment
+- **Production:** https://runner-os.pages.dev
 - **GitHub:** https://github.com/Sparkmind-obp-off/Runner-OS1
 
 ## API
@@ -110,9 +110,9 @@ npm audit
 ## Production deployment
 
 1. Supply a Cloudflare API token through the project Deploy panel; never commit it.
-2. Create the D1 database `runner-os-production` and put its ID in `wrangler.jsonc`.
+2. Use the configured D1 database `runner-os-core-production` and its binding in `wrangler.jsonc`.
 3. Run `npm run db:migrate:prod`.
-4. Build and deploy the Pages project through the BYOK Wrangler workflow.
+4. Build and deploy Pages project `runner-os` through the BYOK Wrangler workflow.
 
 `.env.example` documents boundaries without values. `.dev.vars`, `.env*`, API tokens, and credentials are git-ignored.
 
@@ -127,5 +127,5 @@ Validate the focus limit, overdue/upcoming horizon, and filter defaults with rea
 ## Deployment status
 
 - **Platform:** Cloudflare Pages + Hono + D1
-- **Status:** Phase 2 implemented and verified locally; production BYOK deployment pending
+- **Status:** Phase 2 active; D1 migration applied and BYOK deployment smoke-tested
 - **Last updated:** 2026-09-17

@@ -6,8 +6,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "runner-os-production",
-      "database_id": "REPLACE_AFTER_D1_CREATION",
+      "database_name": "runner-os-core-production",
+      "database_id": "0066287b-b5be-4e08-b94d-498f1c4207a8",
       "migrations_dir": "migrations"
     }
   ]
