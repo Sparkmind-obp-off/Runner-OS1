@@ -27,6 +27,79 @@ async function createRun(cookie: string, overrides: Record<string, unknown> = {}
 
 beforeEach(() => { store = new MemoryRunStore(); app = createApp(() => store) })
 
+describe('Phase 3 authentication and session contract', () => {
+  it('sets a persistent host-only secure cookie with deliberate production attributes', async () => {
+    const response = await app.request('https://runner-os.biz.id/api/auth/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ email:'cookie@example.com', displayName:'Cookie Runner', password:'correct-horse-battery-staple' }),
+    })
+    expect(response.status).toBe(201)
+    const cookie = response.headers.get('set-cookie')!
+    expect(cookie).toContain('runner_session=')
+    expect(cookie).toContain('HttpOnly')
+    expect(cookie).toContain('Secure')
+    expect(cookie).toContain('SameSite=Strict')
+    expect(cookie).toContain('Path=/')
+    expect(cookie).toContain('Max-Age=2592000')
+    expect(cookie).not.toContain('Domain=')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('strict-transport-security')).toContain('max-age=31536000')
+  })
+
+  it('registers, confirms the server session, logs in, and survives refresh-equivalent requests', async () => {
+    const registered = await register('session@example.com', 'Session Runner')
+    const firstMe = await request('/api/auth/me', registered.cookie)
+    const refreshedMe = await request('/api/auth/me', registered.cookie)
+    expect(firstMe.body.data).toEqual(registered.user)
+    expect(refreshedMe.body.data).toEqual(registered.user)
+
+    const login = await request('/api/auth/login', undefined, {
+      method:'POST',
+      body:JSON.stringify({ email:'session@example.com', password:'correct-horse-battery-staple' }),
+    })
+    expect(login.response.status).toBe(200)
+    expect(login.body.data).toEqual(registered.user)
+    const loginCookie = login.response.headers.get('set-cookie')!.split(';')[0]
+    expect(loginCookie).not.toBe(registered.cookie)
+    expect((await request('/api/runs', loginCookie)).response.status).toBe(200)
+  })
+
+  it('uses a generic invalid-credentials response for unknown email and wrong password', async () => {
+    await register('credentials@example.com')
+    for (const body of [
+      { email:'missing@example.com', password:'wrong-password' },
+      { email:'credentials@example.com', password:'wrong-password' },
+    ]) {
+      const result = await request('/api/auth/login', undefined, { method:'POST', body:JSON.stringify(body) })
+      expect(result.response.status).toBe(401)
+      expect(result.body.error).toMatchObject({ code:'AUTH_INVALID', message:'Invalid email or password' })
+    }
+  })
+
+  it('invalidates the server session on logout and clears the matching cookie scope', async () => {
+    const { cookie } = await register('logout@example.com')
+    const logout = await request('/api/auth/logout', cookie, { method:'POST' })
+    expect(logout.response.status).toBe(200)
+    const cleared = logout.response.headers.get('set-cookie')!
+    expect(cleared).toContain('runner_session=')
+    expect(cleared).toContain('Max-Age=0')
+    expect(cleared).toContain('Path=/')
+    expect(cleared).toContain('SameSite=Strict')
+    expect((await request('/api/auth/me', cookie)).body.data).toBeNull()
+    expect((await request('/api/runs', cookie)).response.status).toBe(401)
+  })
+
+  it('rejects invalid and expired sessions and removes expired server records', async () => {
+    expect((await request('/api/runs', 'runner_session=invalid-token')).response.status).toBe(401)
+    const { cookie } = await register('expired@example.com')
+    const session = [...store.sessions.values()][0]
+    session.expiresAt = '2000-01-01T00:00:00.000Z'
+    store.sessions.set(session.tokenHash, session)
+    expect((await request('/api/runs', cookie)).response.status).toBe(401)
+    expect(store.sessions.size).toBe(0)
+  })
+})
+
 describe('Runner OS API', () => {
   it('protects Run and Today endpoints from unauthenticated requests', async () => {
     for (const path of ['/api/runs','/api/today','/api/runs/unknown']) {

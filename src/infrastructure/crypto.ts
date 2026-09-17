@@ -1,5 +1,9 @@
 const encoder = new TextEncoder()
 
+// Cloudflare Workers Web Crypto rejects PBKDF2 iteration counts above 100,000.
+// Use the platform maximum so password hashing works identically in local and production runtimes.
+export const PASSWORD_ITERATIONS = 100_000
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
@@ -26,7 +30,7 @@ export async function sha256(value: string): Promise<string> {
 export async function hashPassword(password: string, salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)))): Promise<{ hash: string; salt: string }> {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: base64ToBytes(salt).buffer as ArrayBuffer, iterations: 210_000 },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: base64ToBytes(salt).buffer as ArrayBuffer, iterations: PASSWORD_ITERATIONS },
     key,
     256,
   )

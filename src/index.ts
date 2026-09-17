@@ -20,6 +20,19 @@ type StoreFactory = (env: Bindings) => RunStore
 export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(env.DB)) {
   const app = new Hono<AppEnv>()
 
+  app.use('*', async (c, next) => {
+    try {
+      await next()
+    } finally {
+      c.header('X-Content-Type-Options', 'nosniff')
+      c.header('X-Frame-Options', 'DENY')
+      c.header('Referrer-Policy', 'no-referrer')
+      c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+      c.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+      if (isSecureRequest(c.req.url)) c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    }
+  })
+
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store')
     c.set('store', storeFactory(c.env))
@@ -48,7 +61,7 @@ export function createApp(storeFactory: StoreFactory = (env) => new D1RunStore(e
 
   app.post('/api/auth/logout', async (c) => {
     await new AuthService(c.get('store')).logout(getCookie(c, SESSION_COOKIE))
-    deleteCookie(c, SESSION_COOKIE, { path: '/', secure: new URL(c.req.url).protocol === 'https:', sameSite: 'Strict' })
+    deleteCookie(c, SESSION_COOKIE, sessionCookieScope(c.req.url))
     return c.json({ data: { success: true } })
   })
 
@@ -137,12 +150,22 @@ async function parseBody<T>(c: { req: { json: () => Promise<unknown> } }, schema
   return parsed.data
 }
 
+function isSecureRequest(url: string): boolean {
+  return new URL(url).protocol === 'https:'
+}
+
+function sessionCookieScope(url: string) {
+  return {
+    secure: isSecureRequest(url),
+    sameSite: 'Strict' as const,
+    path: '/',
+  }
+}
+
 function setSessionCookie(c: any, token: string): void {
   setCookie(c, SESSION_COOKIE, token, {
+    ...sessionCookieScope(c.req.url),
     httpOnly: true,
-    secure: new URL(c.req.url).protocol === 'https:',
-    sameSite: 'Strict',
-    path: '/',
     maxAge: 60 * 60 * 24 * 30,
   })
 }

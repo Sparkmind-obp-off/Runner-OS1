@@ -23,11 +23,21 @@ Runner OS is a calm personal execution system for everything a person is activel
 - Improved Run cards and detail view with due state, tags, next action, progress, focus controls, and recovery guidance.
 - Responsive mobile navigation, filters, loading/error/empty states, and accessible modal/dialog labels.
 
+### Phase 3 Authentication and production hardening
+
+- Cloudflare-compatible PBKDF2 password hashing at the Workers Web Crypto maximum of 100,000 iterations.
+- Opaque 30-day server-side sessions stored as SHA-256 token hashes in D1.
+- Host-only `HttpOnly`, `SameSite=Strict`, `Path=/` cookies; `Secure` is enabled on HTTPS production origins.
+- Server-confirmed session bootstrap after login/registration, explicit expired-session UX, and logout state cleanup.
+- Dynamic security headers on Worker responses and revalidated unversioned static assets to prevent stale auth bundles.
+- Expanded authentication, cookie, expiry, logout, invalid-session, and ownership regression coverage.
+
 ## URLs
 
 - **Local preview:** `http://localhost:3000`
 - **Health:** `GET /health`
-- **Production:** https://runner-os.pages.dev
+- **Production custom domain:** https://runner-os.biz.id
+- **Canonical Pages origin:** https://runner-os.pages.dev
 - **GitHub:** https://github.com/Sparkmind-obp-off/Runner-OS1
 
 ## API
@@ -113,8 +123,11 @@ npm audit
 2. Use the configured D1 database `runner-os-core-production` and its binding in `wrangler.jsonc`.
 3. Run `npm run db:migrate:prod`.
 4. Build and deploy Pages project `runner-os` through the BYOK Wrangler workflow.
+5. Keep `runner-os.biz.id` attached to that Pages project; API calls remain relative and same-origin.
 
-`.env.example` documents boundaries without values. `.dev.vars`, `.env*`, API tokens, and credentials are git-ignored.
+Production and preview/custom origins intentionally receive separate host-only session cookies. A login on `runner-os.biz.id` does not authenticate `runner-os.pages.dev`, and vice versa. `.env.example` documents boundaries without values. `.dev.vars`, `.env*`, API tokens, and credentials are git-ignored.
+
+See `docs/15_PHASE_3_STATUS.md` for the authentication architecture, cookie contract, browser matrix, and manual acceptance checklist.
 
 ## Not yet implemented
 
@@ -122,10 +135,10 @@ Focus-session logging, goals, activity records, external connectors, autonomous 
 
 ## Recommended next sprint
 
-Validate the focus limit, overdue/upcoming horizon, and filter defaults with real usage. The next implementation sprint should add explicit focus-session logging against a Run only if usage demonstrates value; otherwise continue UX refinement before beginning the Activity Layer.
+Run the documented Phase 3 acceptance matrix in Firefox, Safari/WebKit, and representative mobile browsers using `https://runner-os.biz.id`. After that operational sign-off, return to product validation before starting any new feature phase.
 
 ## Deployment status
 
 - **Platform:** Cloudflare Pages + Hono + D1
-- **Status:** Phase 2 active; D1 migration applied and BYOK deployment smoke-tested
+- **Status:** Phase 3 implementation verified locally; production BYOK deployment and post-deploy checks are recorded in `docs/15_PHASE_3_STATUS.md`
 - **Last updated:** 2026-09-17

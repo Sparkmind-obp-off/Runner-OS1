@@ -38,9 +38,16 @@ export class AuthService {
     if (!token) throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
     const tokenHash = await sha256(token)
     const session = await this.store.findSessionByTokenHash(tokenHash)
-    if (!session || session.expiresAt <= this.runtime.now()) throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
+    if (!session) throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
+    if (session.expiresAt <= this.runtime.now()) {
+      await this.store.deleteSessionByTokenHash(tokenHash)
+      throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
+    }
     const user = await this.store.findUserById(session.ownerId)
-    if (!user) throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
+    if (!user) {
+      await this.store.deleteSessionByTokenHash(tokenHash)
+      throw new AppError('AUTH_REQUIRED', 'Authentication required', 401)
+    }
     return toPublicUser(user)
   }
 

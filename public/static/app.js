@@ -26,6 +26,10 @@ async function api(path, options = {}) {
     const error = new Error(payload.error?.message || 'Request failed')
     error.code = payload.error?.code
     error.details = payload.error?.details
+    if (response.status === 401 && error.code === 'AUTH_REQUIRED') {
+      state.user = null
+      renderAuth('login', 'Your session expired. Sign in again to continue.')
+    }
     throw error
   }
   return payload.data
@@ -58,14 +62,24 @@ function renderAuth(mode = 'login', message = '') {
   document.querySelector('#switch-auth').onclick = () => renderAuth(mode === 'login' ? 'register' : 'login')
   document.querySelector('#auth-form').onsubmit = async (event) => {
     event.preventDefault()
-    const body = Object.fromEntries(new FormData(event.currentTarget).entries())
+    const form = event.currentTarget
+    const submit = form.querySelector('button[type="submit"]')
+    const body = Object.fromEntries(new FormData(form).entries())
+    submit.disabled = true
+    submit.setAttribute('aria-busy', 'true')
+    submit.textContent = mode === 'login' ? 'Signing in…' : 'Creating account…'
     try {
-      state.user = await api(`/api/auth/${mode}`, { method:'POST', body:JSON.stringify(body) })
+      await api(`/api/auth/${mode}`, { method:'POST', body:JSON.stringify(body) })
+      state.user = await api('/api/auth/me')
+      if (!state.user) throw new Error('The server did not confirm the new session. Please try again.')
       history.replaceState({}, '', '/')
       state.view = 'today'
       await loadData()
       render()
-    } catch (error) { renderAuth(mode, error.message) }
+    } catch (error) {
+      state.user = null
+      renderAuth(mode, error.message)
+    }
   }
 }
 
@@ -141,7 +155,15 @@ function bindShell() {
   document.querySelectorAll('[data-nav]').forEach((button) => button.onclick = () => navigate(button.dataset.nav === 'today' ? '/' : '/runs'))
   document.querySelectorAll('[data-create]').forEach((button) => button.onclick = showCreate)
   const logout = document.querySelector('#logout')
-  if (logout) logout.onclick = async () => { await api('/api/auth/logout', { method:'POST' }); state.user = null; renderAuth() }
+  if (logout) logout.onclick = async () => {
+    try {
+      await api('/api/auth/logout', { method:'POST' })
+      state.user = null
+      state.runs = []
+      state.today = null
+      renderAuth()
+    } catch (error) { toast(error.message, true) }
+  }
   bindRunLinks()
 }
 
