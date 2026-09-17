@@ -3,7 +3,7 @@ import type { Run, RunEvent, Session, User } from '../domain/models'
 
 interface UserRow { id: string; email: string; display_name: string; password_hash: string; password_salt: string; created_at: string }
 interface SessionRow { id: string; owner_id: string; token_hash: string; expires_at: string; created_at: string }
-interface RunRow { id: string; owner_id: string; title: string; type: Run['type']; outcome: string; status: Run['status']; priority: Run['priority']; next_action: string; progress: number; blocker: string | null; due_at: string | null; created_at: string; updated_at: string }
+interface RunRow { id: string; owner_id: string; title: string; type: Run['type']; outcome: string; status: Run['status']; priority: Run['priority']; next_action: string; progress: number; blocker: string | null; due_at: string | null; tags: string; focus_date: string | null; focus_order: number | null; created_at: string; updated_at: string }
 interface EventRow { id: string; run_id: string; owner_id: string; event_type: RunEvent['eventType']; previous_state: RunEvent['previousState']; new_state: RunEvent['newState']; metadata: string; created_at: string }
 
 export class D1RunStore implements RunStore {
@@ -43,8 +43,8 @@ export class D1RunStore implements RunStore {
   }
   async saveRunWithEvent(run: Run, event: RunEvent): Promise<void> {
     await this.db.batch([
-      this.db.prepare('UPDATE runs SET title=?,type=?,outcome=?,status=?,priority=?,next_action=?,progress=?,blocker=?,due_at=?,updated_at=? WHERE id=? AND owner_id=?')
-        .bind(run.title, run.type, run.outcome, run.status, run.priority, run.nextAction, run.progress, run.blocker, run.dueAt, run.updatedAt, run.id, run.ownerId),
+      this.db.prepare('UPDATE runs SET title=?,type=?,outcome=?,status=?,priority=?,next_action=?,progress=?,blocker=?,due_at=?,tags=?,focus_date=?,focus_order=?,updated_at=? WHERE id=? AND owner_id=?')
+        .bind(run.title, run.type, run.outcome, run.status, run.priority, run.nextAction, run.progress, run.blocker, run.dueAt, JSON.stringify(run.tags), run.focusDate, run.focusOrder, run.updatedAt, run.id, run.ownerId),
       this.insertEvent(event),
     ])
   }
@@ -58,8 +58,8 @@ export class D1RunStore implements RunStore {
   }
 
   private insertRun(run: Run): D1PreparedStatement {
-    return this.db.prepare('INSERT INTO runs (id,owner_id,title,type,outcome,status,priority,next_action,progress,blocker,due_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .bind(run.id, run.ownerId, run.title, run.type, run.outcome, run.status, run.priority, run.nextAction, run.progress, run.blocker, run.dueAt, run.createdAt, run.updatedAt)
+    return this.db.prepare('INSERT INTO runs (id,owner_id,title,type,outcome,status,priority,next_action,progress,blocker,due_at,tags,focus_date,focus_order,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(run.id, run.ownerId, run.title, run.type, run.outcome, run.status, run.priority, run.nextAction, run.progress, run.blocker, run.dueAt, JSON.stringify(run.tags), run.focusDate, run.focusOrder, run.createdAt, run.updatedAt)
   }
   private insertEvent(event: RunEvent): D1PreparedStatement {
     return this.db.prepare('INSERT INTO run_events (id,run_id,owner_id,event_type,previous_state,new_state,metadata,created_at) VALUES (?,?,?,?,?,?,?,?)')
@@ -70,5 +70,5 @@ export class D1RunStore implements RunStore {
 function mapUser(row: UserRow | null): User | null { return row ? { id: row.id, email: row.email, displayName: row.display_name, passwordHash: row.password_hash, passwordSalt: row.password_salt, createdAt: row.created_at } : null }
 function mapSession(row: SessionRow | null): Session | null { return row ? { id: row.id, ownerId: row.owner_id, tokenHash: row.token_hash, expiresAt: row.expires_at, createdAt: row.created_at } : null }
 function mapRun(row: RunRow | null): Run | null { return row ? mapRunNonNull(row) : null }
-function mapRunNonNull(row: RunRow): Run { return { id: row.id, ownerId: row.owner_id, title: row.title, type: row.type, outcome: row.outcome, status: row.status, priority: row.priority, nextAction: row.next_action, progress: row.progress, blocker: row.blocker, dueAt: row.due_at, createdAt: row.created_at, updatedAt: row.updated_at } }
+function mapRunNonNull(row: RunRow): Run { let tags: string[] = []; try { const parsed = JSON.parse(row.tags ?? '[]'); if (Array.isArray(parsed)) tags = parsed.filter((tag): tag is string => typeof tag === 'string') } catch { tags = [] } return { id: row.id, ownerId: row.owner_id, title: row.title, type: row.type, outcome: row.outcome, status: row.status, priority: row.priority, nextAction: row.next_action, progress: row.progress, blocker: row.blocker, dueAt: row.due_at, tags, focusDate: row.focus_date, focusOrder: row.focus_order, createdAt: row.created_at, updatedAt: row.updated_at } }
 function mapEvent(row: EventRow): RunEvent { let metadata: Record<string, unknown> = {}; try { metadata = JSON.parse(row.metadata) as Record<string, unknown> } catch { metadata = {} } return { id: row.id, runId: row.run_id, ownerId: row.owner_id, eventType: row.event_type, previousState: row.previous_state, newState: row.new_state, metadata, createdAt: row.created_at } }

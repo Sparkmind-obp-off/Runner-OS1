@@ -23,4 +23,21 @@ describe('RunService transactional behavior', () => {
     await service.updateNextAction('owner-a', run.id, 'Call supplier')
     await expect(service.resume('owner-a', run.id)).resolves.toMatchObject({ status:'active', blocker:null })
   })
+
+  it('builds a timezone-safe Today decision surface', async () => {
+    const store = new MemoryRunStore(); const service = new RunService(store, runtime)
+    const overdue = await service.create('owner-a', { title:'Overdue', type:'project', dueAt:'2025-12-31T23:59:59.000Z', priority:'critical' })
+    const upcoming = await service.create('owner-a', { title:'Upcoming', type:'project', dueAt:'2026-01-08T00:00:00.000Z' })
+    const later = await service.create('owner-a', { title:'Later', type:'project', dueAt:'2026-01-08T00:00:00.001Z' })
+    await service.updateFocus('owner-a', overdue.id, { focusDate:'2026-01-01', focusOrder:1 })
+    await service.start('owner-a', overdue.id); await service.complete('owner-a', overdue.id)
+    await service.updateFocus('owner-a', upcoming.id, { focusDate:'2026-01-01', focusOrder:2 })
+
+    const today = await service.today('owner-a', '2026-01-01')
+    expect(today.generatedAt).toBe('2026-01-01T00:00:00.000Z')
+    expect(today.focusRuns.map((run) => run.id)).toEqual([upcoming.id])
+    expect(today.overdue).toEqual([])
+    expect(today.upcoming.map((run) => run.id)).toEqual([upcoming.id])
+    expect(today.upcoming.some((run) => run.id === later.id)).toBe(false)
+  })
 })

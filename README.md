@@ -1,18 +1,27 @@
 # Runner OS
 
-Runner OS is a calm personal execution system for everything a person is actively running. Phase 1 implements the canonical **Run** loop: capture, clarify, start, track, block/pause, recover, complete, and inspect history.
+Runner OS is a calm personal execution system for everything a person is actively running. The canonical **Run** remains the only execution entity. Phase 2 adds a lightweight Productivity Layer for daily focus, organization, search, and deterministic due-time awareness without introducing a competing task or project model.
 
-## Phase 1 features
+## Completed features
 
-- Email/password registration and login with PBKDF2 password hashes and opaque, HTTP-only session cookies.
+### Runner Core
+
+- Email/password registration and login with PBKDF2 password hashes and opaque HTTP-only session cookies.
 - Server-side owner isolation for every Run and Run Event operation.
-- Persistent Cloudflare D1 storage with a reproducible migration.
-- Run creation, listing, detail, metadata editing, next action, progress, blocker, due time, and archive behavior.
-- Domain-enforced lifecycle: `planned → active`, active pause/block/complete/archive, paused resume/complete/archive, and blocked recover/complete/archive.
-- Append-oriented event timeline for important mutations.
-- Focused Today dashboard: high-priority active Runs, next actions, blockers, resumable Runs, and recent changes.
-- Explicit blocked recovery flow: identify blocker → set next action → resume.
-- Stable JSON errors and automated domain, API, ownership, transaction, security, and UX acceptance tests.
+- Run creation, detail, metadata editing, next action, progress, blocker, due time, and archive behavior.
+- Domain-enforced lifecycle: `planned → active → paused / blocked → active → completed / archived`.
+- Append-oriented history for creation, metadata, next action, progress, focus, and lifecycle changes.
+- Transactional Run and event writes through Cloudflare D1.
+
+### Phase 2 Productivity Layer
+
+- Normalized, deduplicated Run tags (up to 10) for lightweight grouping.
+- A deliberately limited daily focus set of up to three actionable Runs.
+- Server-side search, filtering by status/priority/type/tag, and deterministic sorting by priority/due/update/title.
+- Today decision surface with focused, active, blocked, resumable, overdue, upcoming, priority, and recent-change views.
+- UTC due-time storage and deterministic overdue/upcoming rules; completed and archived Runs are excluded from active overdue work.
+- Improved Run cards and detail view with due state, tags, next action, progress, focus controls, and recovery guidance.
+- Responsive mobile navigation, filters, loading/error/empty states, and accessible modal/dialog labels.
 
 ## URLs
 
@@ -23,6 +32,8 @@ Runner OS is a calm personal execution system for everything a person is activel
 
 ## API
 
+All successful responses use `{ "data": ... }`. Errors use `{ "error": { "code", "message", "details?" } }`. Cross-owner access fails closed as `NOT_FOUND`.
+
 Authentication:
 
 - `POST /api/auth/register` — `{ email, displayName, password }`
@@ -30,28 +41,43 @@ Authentication:
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-Protected Runner Core:
+Protected Runner Core and productivity routes:
 
-- `GET|POST /api/runs`
+- `GET /api/runs` — optional query parameters: `status`, `priority`, `type`, `tag`, `search`, `sort`, `direction`
+- `POST /api/runs` — supports optional `priority`, `nextAction`, `dueAt`, and `tags`
 - `GET|PATCH|DELETE /api/runs/:id` (`DELETE` is safe archive semantics)
 - `PATCH /api/runs/:id/next-action`
 - `PATCH /api/runs/:id/progress`
+- `PATCH /api/runs/:id/focus` — `{ focusDate: "YYYY-MM-DD" | null, focusOrder?: 1 | 2 | 3 | null }`
 - `POST /api/runs/:id/start|pause|block|resume|complete|archive`
 - `GET /api/runs/:id/history`
-- `GET /api/today`
-
-Successful APIs return `{ "data": ... }`. Errors return `{ "error": { "code", "message", "details?" } }`. Cross-owner access fails closed as `NOT_FOUND`.
+- `GET /api/today?date=YYYY-MM-DD`
 
 ## Data architecture
 
 Cloudflare D1 stores:
 
 - `users` — identity plus salted PBKDF2 password material;
-- `sessions` — only SHA-256 hashes of random opaque tokens;
-- `runs` — canonical owner-scoped execution state;
+- `sessions` — SHA-256 hashes of random opaque tokens;
+- `runs` — canonical owner-scoped state, including JSON tags and optional daily focus fields;
 - `run_events` — append-oriented, owner-scoped history.
 
-Lifecycle writes update the Run and append its event in one transactional `D1.batch()` call. IDs are UUIDs and timestamps are UTC ISO-8601 values.
+Migrations:
+
+- `0001_runner_core.sql` — Phase 1 identity, sessions, Runs, and event history.
+- `0002_productivity_layer.sql` — tags, focus date/order, and due/focus indexes.
+
+IDs are UUIDs. Instants are UTC ISO-8601 strings. Daily focus uses a client-local `YYYY-MM-DD` key supplied to the server, while due comparisons use the server-generated UTC instant returned by Today.
+
+## User guide
+
+1. Create an account or sign in.
+2. Capture a Run with a title, type, outcome, optional next action, due time, priority, and tags.
+3. Use **Runs** to search, filter, and sort commitments.
+4. Add up to three actionable Runs to **Today focus**.
+5. Open a Run to start it, update its next action/progress, or handle pause/block/recovery.
+6. Use Today to see overdue and upcoming work without completed or archived noise.
+7. Complete the Run and inspect its immutable history timeline.
 
 ## Development
 
@@ -72,7 +98,7 @@ pm2 start ecosystem.config.cjs
 curl http://localhost:3000/health
 ```
 
-Quality checks:
+Quality gates:
 
 ```bash
 npm test
@@ -81,34 +107,25 @@ npm run build
 npm audit
 ```
 
-## Environment and production configuration
+## Production deployment
 
-- `.env.example` documents the server/client boundary and contains no values.
-- Phase 1 needs no shared authentication secret: each session uses a random token and D1 stores only its hash.
-- Never commit `.dev.vars`, `.env*` values, API tokens, or credentials.
-- For production, create D1 database `runner-os-production`, replace `REPLACE_AFTER_D1_CREATION` in `wrangler.jsonc`, apply migrations remotely, then deploy `dist/` to Cloudflare Pages.
-- Cloudflare API credentials are supplied through the project Deploy panel and loaded only into the sandbox environment for BYOK deployment.
+1. Supply a Cloudflare API token through the project Deploy panel; never commit it.
+2. Create the D1 database `runner-os-production` and put its ID in `wrangler.jsonc`.
+3. Run `npm run db:migrate:prod`.
+4. Build and deploy the Pages project through the BYOK Wrangler workflow.
 
-## User guide
+`.env.example` documents boundaries without values. `.dev.vars`, `.env*`, API tokens, and credentials are git-ignored.
 
-1. Create an account or sign in.
-2. Use **New Run** to capture a title, type, outcome, and optional next action.
-3. Open the Run and start it.
-4. Update progress and the next action as work changes.
-5. Pause or block the Run when appropriate. A blocked Run requires a blocker and a recovery next action before resume.
-6. Complete the Run and inspect its History timeline.
-7. Use Today to choose the highest-value next move.
+## Not yet implemented
 
-## Not implemented (Phase 1 non-goals)
+Focus-session logging, goals, activity records, external connectors, autonomous AI actions, team/social features, analytics-heavy dashboards, and complex project-management methods remain deferred. Phase 2 intentionally uses tags and daily focus instead of adding independent Project or Task entities.
 
-Strava, calendar/GitHub connectors, autonomous AI actions, social/team features, activity records, goals, complex project-management methodologies, and analytics are intentionally deferred.
+## Recommended next sprint
 
-## Recommended next step
-
-After validating Phase 1 with real usage, begin Phase 2 productivity features while preserving Runner Core as the only execution state model.
+Validate the focus limit, overdue/upcoming horizon, and filter defaults with real usage. The next implementation sprint should add explicit focus-session logging against a Run only if usage demonstrates value; otherwise continue UX refinement before beginning the Activity Layer.
 
 ## Deployment status
 
 - **Platform:** Cloudflare Pages + Hono + D1
-- **Status:** implementation verified locally; production deployment pending
-- **Last updated:** 2026-09-14
+- **Status:** Phase 2 implemented and verified locally; production BYOK deployment pending
+- **Last updated:** 2026-09-17

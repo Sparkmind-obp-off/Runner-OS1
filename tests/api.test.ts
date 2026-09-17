@@ -54,6 +54,7 @@ describe('Runner OS API', () => {
       [`/api/runs/${run.id}`, {}],
       [`/api/runs/${run.id}`, { method:'PATCH', body:JSON.stringify({ title:'Stolen' }) }],
       [`/api/runs/${run.id}/start`, { method:'POST' }],
+      [`/api/runs/${run.id}/focus`, { method:'PATCH', body:JSON.stringify({ focusDate:'2026-09-17', focusOrder:1 }) }],
       [`/api/runs/${run.id}/history`, {}],
       [`/api/runs/${run.id}`, { method:'DELETE' }],
     ]
@@ -85,6 +86,41 @@ describe('Runner OS API', () => {
     }
     const blocked = await request(`/api/runs/${run.id}/block`, cookie, { method:'POST', body:JSON.stringify({ blocker:'' }) })
     expect(blocked.response.status).toBe(400)
+  })
+
+  it('supports owner-scoped organization, filtering, sorting, and stable validation errors', async () => {
+    const { cookie } = await register('organize@example.com')
+    await createRun(cookie, { title:'Low personal Run', priority:'low', type:'learning', tags:['Personal'] })
+    await createRun(cookie, { title:'Critical launch Run', priority:'critical', tags:['Launch', 'Work'] })
+    const filtered = await request('/api/runs?tag=launch&sort=priority&direction=asc', cookie)
+    expect(filtered.response.status).toBe(200)
+    expect(filtered.body.data.map((run: any) => run.title)).toEqual(['Critical launch Run'])
+    expect(filtered.body.data[0].tags).toEqual(['launch','work'])
+    const invalid = await request('/api/runs?sort=unknown', cookie)
+    expect(invalid.response.status).toBe(400)
+    expect(invalid.body.error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('limits daily focus, records focus history, and excludes terminal Runs from overdue', async () => {
+    const { cookie } = await register('focus@example.com')
+    const runs: Array<{ id: string }> = []
+    for (let index = 0; index < 4; index++) runs.push(await createRun(cookie, { title:`Focus ${index}`, dueAt:'2000-01-01T00:00:00.000Z' }))
+    for (const [index, run] of runs.slice(0, 3).entries()) {
+      const focused = await request(`/api/runs/${run.id}/focus`, cookie, { method:'PATCH', body:JSON.stringify({ focusDate:'2026-09-17', focusOrder:index + 1 }) })
+      expect(focused.response.status).toBe(200)
+    }
+    const overflow = await request(`/api/runs/${runs[3].id}/focus`, cookie, { method:'PATCH', body:JSON.stringify({ focusDate:'2026-09-17', focusOrder:1 }) })
+    expect(overflow.response.status).toBe(409)
+    expect(overflow.body.error.code).toBe('CONFLICT')
+
+    await request(`/api/runs/${runs[0].id}/start`, cookie, { method:'POST' })
+    await request(`/api/runs/${runs[0].id}/complete`, cookie, { method:'POST' })
+    const today = await request('/api/today?date=2026-09-17', cookie)
+    expect(today.body.data.focusRuns).toHaveLength(2)
+    expect(today.body.data.overdue.some((run: any) => run.id === runs[0].id)).toBe(false)
+    const history = await request(`/api/runs/${runs[0].id}/history`, cookie)
+    expect(history.body.data.some((event: any) => event.eventType === 'run.focus_updated')).toBe(true)
+    expect(history.body.data.find((event: any) => event.newState === 'completed').metadata.focusCleared).toBe(true)
   })
 
   it('does not expose password material or session token in API payloads', async () => {

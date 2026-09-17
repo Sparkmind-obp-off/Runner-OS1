@@ -35,11 +35,27 @@ export interface Run {
   progress: number
   blocker: string | null
   dueAt: string | null
+  tags: string[]
+  focusDate: string | null
+  focusOrder: number | null
   createdAt: string
   updatedAt: string
 }
 
-export type RunEventType = 'run.created' | 'run.updated' | 'run.progress_updated' | 'run.next_action_updated' | 'run.lifecycle_changed'
+export type RunSort = 'priority' | 'due' | 'updated' | 'title'
+export type SortDirection = 'asc' | 'desc'
+
+export interface RunListOptions {
+  status?: RunStatus
+  priority?: RunPriority
+  type?: RunType
+  tag?: string
+  search?: string
+  sort?: RunSort
+  direction?: SortDirection
+}
+
+export type RunEventType = 'run.created' | 'run.updated' | 'run.progress_updated' | 'run.next_action_updated' | 'run.focus_updated' | 'run.lifecycle_changed'
 
 export interface RunEvent {
   id: string
@@ -53,9 +69,14 @@ export interface RunEvent {
 }
 
 export interface TodayData {
+  generatedAt: string
+  focusDate: string
+  focusRuns: Run[]
   priorityRuns: Run[]
   nextActions: Run[]
   blocked: Run[]
   resumable: Run[]
+  overdue: Run[]
+  upcoming: Run[]
   recentChanges: RunEvent[]
 }
