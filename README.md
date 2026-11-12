@@ -6,7 +6,7 @@ Runner OS adalah **Personal Running Operating System** privat yang membantu pela
 
 ### Fondasi Phase 1–3
 
-- Registrasi/login email dan password dengan PBKDF2 100.000 iterasi.
+- Autentikasi aplikasi menggunakan Clerk Production (Google) sebagai satu-satunya jalur masuk; sesi internal HttpOnly tetap dipakai untuk API.
 - Sesi opaque 30 hari di server, cookie host-only `HttpOnly`, `SameSite=Strict`, dan `Secure` pada HTTPS.
 - Owner isolation untuk semua data personal.
 - Runner Core: Run CRUD, lifecycle, next action, progress, blocker, due time, daily focus, tag, pencarian, filter, dan riwayat append-oriented.
@@ -16,8 +16,8 @@ Runner OS adalah **Personal Running Operating System** privat yang membantu pela
 
 - Login/daftar dengan Google melalui Clerk Production (`clerk.runner-os.biz.id`), diverifikasi **server-side** (RS256 + JWKS, issuer, `azp`, expiry).
 - Clerk subject dipetakan ke `users.id` internal yang tetap kanonik (`external_identities`); data lama tidak berpindah.
-- Email yang sudah terdaftar **tidak pernah** di-link otomatis (anti-takeover) → pengguna lama masuk dengan kata sandi lalu **Profil → Hubungkan akun Google**.
-- Fail-closed: tanpa `CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`, tombol Google tersembunyi dan login email/kata sandi tetap berjalan.
+- Email yang sudah terdaftar **tidak pernah** di-link otomatis (anti-takeover). Pengguna lama hanya dapat menghubungkan Google dari sesi Runner OS lama yang masih sah melalui **Profil → Hubungkan akun Google**; data dan `users.id` tetap dipertahankan.
+- Email/kata sandi bawaan Runner OS telah dipensiunkan: UI hanya menampilkan Google; `POST /api/auth/register` dan `/api/auth/login` mengembalikan `410 PASSWORD_AUTH_DISABLED` secara default. Tanpa konfigurasi Clerk, aplikasi gagal tertutup dan tidak membuka jalur password sebagai fallback.
 - Status produksi lengkap, checklist DNS/Google OAuth, dan rollback: [docs/51](docs/51_CLERK_PRODUCTION_IMPLEMENTATION_STATUS.md).
 
 ### Phase 4 — Hyper-Personalized Runner OS
@@ -170,7 +170,7 @@ curl http://localhost:3000/health
 
 ## Belum diimplementasikan / blocker eksternal
 
-- **Clerk Google sign-in live:** kode, migrasi, dan secret siap; **BLOCKED** oleh DNS `clerk.runner-os.biz.id` (+4 CNAME lain) yang belum dibuat dan Google OAuth custom credentials di Clerk Dashboard. Lihat Doc 51 §6.
+- **Clerk Google sign-in:** custom domain, lima CNAME, SSL, dan kredensial Google OAuth Production sudah terkonfigurasi menurut pemeriksaan Clerk 2026-11-13. Pengujian browser end-to-end login nyata masih **NOT RUN**; jangan klaim production verified sebelum sign-up, sign-in, protected API, logout, dan linking akun lama diuji.
 
 - **Strava live OAuth/sync:** boundary, status, normalizer, import contract, dan deduplikasi sudah tersedia; callback OAuth, revocation provider, serta encrypted token storage diblokir sampai kredensial dan kebijakan penyimpanan token produksi tersedia. Tidak ada sync palsu.
 - **Groq live response:** adapter, application service, endpoint, mock tests, dan error normalization tersedia. Cloudflare melaporkan nama secret `GROQ_API_KEY` sudah terkonfigurasi secara encrypted, tetapi nilai secret tidak dibaca atau diubah pada workflow ini. Live provider belum boleh dianggap terverifikasi sampai pemilik menjalankan authenticated safe-prompt test.
@@ -186,7 +186,7 @@ curl http://localhost:3000/health
 
 ## Status
 
-- **Clerk identity (2026-11-12):** IMPLEMENTED + TESTED (91/91 tests, 24 tes keamanan Clerk baru); migrasi `0004` diterapkan; production handshake **BLOCKED** (DNS + Google OAuth). Detail di Doc 51.
+- **Clerk identity (2026-11-13):** server verification, identity mapping, explicit legacy-account linking, dan UI Google-only telah diimplementasikan. DNS/SSL/Google OAuth Production sudah dikonfigurasi; browser end-to-end masih NOT RUN. Perubahan Clerk-only sedang disiapkan di branch `feat/clerk-production-only-auth`; lihat Doc 51.
 
 - **Phase 1–5 code:** implemented dan terverifikasi lokal: 67/67 automated tests lulus, typecheck lulus, production build lulus, tiga migration D1 lulus pada database lokal bersih, dependency audit menemukan 0 vulnerability, API smoke test lulus, dan browser console tidak memiliki error.
 - **Strava live:** blocked oleh kredensial/OAuth token-storage prerequisite.
@@ -241,7 +241,7 @@ The target product model and boundaries for multi-user SaaS, agentic services, u
 
 - [37 — Agentic Running OS as a Service (SaaS) Blueprint](docs/37_AGENTIC_RUNNING_OS_AS_A_SERVICE_SAAS_BLUEPRINT.md)
 
-**Identity boundary:** Clerk is designated for Google sign-in only. Strava OAuth is a separate provider flow and must not be routed through Clerk. Existing email/password authentication must be migrated safely before deprecation.
+**Identity boundary:** Clerk Production Google is the only Runner OS authentication method. Native email/password registration/login endpoints are retired. Existing accounts and data are preserved; explicit linking requires a still-valid existing Runner OS session. Strava OAuth is a separate provider flow and must not be routed through Clerk.
 
 **Product boundary:** Runner OS remains useful without Strava. Agentic capabilities are bounded, budgeted and approval-gated. The SaaS pricing/tier model is a hypothesis, not published pricing.
 
