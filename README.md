@@ -187,3 +187,23 @@ The next evolution is documented in:
 - [Phase 6 Agentic Implementation Master Prompt](docs/18_PHASE_6_AGENTIC_IMPLEMENTATION_PROMPT.md)
 
 These documents define a TypeScript-first, Cloudflare-native orchestration architecture, specialist agents, durable workflows, user-controlled memory, approval-gated tools, and a read-only Strava OAuth/sync path. They are target specifications, not evidence that Phase 6 code or live Strava integration has shipped. The last recorded Phase 1–5 verification remains dated 2026-09-17; rerun tests and verify production health before relying on that status.
+
+
+## Product & Implementation Blueprint (Docs 19–28)
+
+The complete product blueprint now defines the North Star, PRD, MVP/MVW, UX/UI, frontend, backend/database, Strava and AI/MCP integrations, Cloudflare architecture decisions, implementation command center, and execution/testing/release gates.
+
+| Document | Purpose |
+|---|---|
+| [19 — Product Vision & North Star](docs/19_PRODUCT_VISION_NORTH_STAR.md) | Product direction, principles and success metrics |
+| [20 — PRD](docs/20_PRODUCT_REQUIREMENTS_DOCUMENT.md) | Functional/non-functional requirements and user journeys |
+| [21 — MVP/MVW](docs/21_MVP_MVW_SCOPE_AND_ACCEPTANCE.md) | Minimum viable scope, valuable workflow and acceptance |
+| [22 — UX/UI](docs/22_UX_UI_INFORMATION_ARCHITECTURE.md) | Navigation, screens, interaction states and accessibility |
+| [23 — Frontend Contract](docs/23_FRONTEND_IMPLEMENTATION_CONTRACT.md) | Frontend boundaries, API client and UI data contracts |
+| [24 — Backend & Database](docs/24_BACKEND_DATABASE_AND_DOMAIN_CONTRACT.md) | Domain, D1, agent tables, state machines and API targets |
+| [25 — Integrations](docs/25_INTEGRATIONS_STRAVA_AI_MCP_CONTRACT.md) | Strava OAuth/sync, AI providers, AI Gateway and MCP |
+| [26 — Cloudflare Architecture & ADRs](docs/26_CLOUDFLARE_PLATFORM_ARCHITECTURE_AND_ADR.md) | Platform choices, D1/Neon, Workflows/Queues, frameworks and cost gates |
+| [27 — Master Implementation Command Center](docs/27_MASTER_IMPLEMENTATION_COMMAND_CENTER.md) | Unified implementation instructions and definition of done |
+| [28 — Roadmap & Release Gates](docs/28_EXECUTION_ROADMAP_TESTING_RELEASE_GATES.md) | Phases, QA, security tests and release readiness |
+
+**Important:** These are product and implementation specifications. They do not mean the described features are already implemented or production-enabled. The existing source baseline remains the authority. In particular, Strava OAuth/live sync, agentic orchestration, approval inbox, personal memory and additional Cloudflare services remain gated until implemented and verified. The current frontend baseline is static HTML/CSS/JavaScript, not React/Vite; the frontend contract explicitly preserves this unless a measured migration is approved.
