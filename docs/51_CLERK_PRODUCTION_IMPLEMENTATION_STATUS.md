@@ -91,3 +91,16 @@ PRODUCTION VERIFIED may be claimed only after, on `https://runner-os.biz.id`: re
 ## 9. Next phase
 
 Workstream 0/1 remainder: rate limiting for `/api/auth/*` and `/api/ai/*`, account export/deletion, zod major upgrade, then Workstream 2 (Agentic Core: run state, tool registry, approvals).
+
+## 10. Deployment record (2026-11-12)
+
+| Step | Status | Evidence |
+|---|---|---|
+| Pages secrets `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_AUTHORIZED_PARTIES` | DONE | `wrangler pages secret list` → all present, encrypted |
+| Production D1 migration `0004_clerk_identity.sql` | DONE | `wrangler d1 migrations apply --remote` ✅; tables `external_identities`, `auth_events` exist |
+| Pages deploy (commit `e129a77`) | DEPLOYED | https://5426fa65.runner-os.pages.dev |
+| `GET /api/auth/config` on `runner-os.biz.id` + `runner-os.pages.dev` | PRODUCTION VERIFIED | `clerk.enabled=true`, `environment=production` |
+| Forged Clerk token → `401 AUTH_INVALID`; link without session → `401` | PRODUCTION VERIFIED | curl |
+| Legacy register → `/api/auth/identities` → logout | PRODUCTION VERIFIED | throwaway account, deleted afterwards |
+| Browser console on `/` | no errors | Playwright |
+| Real Google sign-in on production | **BLOCKED** | DNS `clerk.runner-os.biz.id` + Google OAuth credentials (see §6) |
