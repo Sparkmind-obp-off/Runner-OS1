@@ -24,7 +24,7 @@ export async function loadClerk() {
     clerkPromise = new Promise((resolve, reject) => {
       if (window.Clerk) return resolve(window.Clerk)
       const script = document.createElement('script')
-      script.src = `${config.frontendApi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`
+      script.src = `${config.frontendApi}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`
       script.async = true
       script.crossOrigin = 'anonymous'
       script.dataset.clerkPublishableKey = config.publishableKey
@@ -59,7 +59,11 @@ export function isClerkCallback() {
 export async function completeCallback() {
   const clerk = await loadClerk()
   if (!new URLSearchParams(location.search).has('done') && !clerk.session) {
-    await clerk.handleRedirectCallback({ signInFallbackRedirectUrl: `${CALLBACK_PATH}?done=1`, signUpFallbackRedirectUrl: `${CALLBACK_PATH}?done=1` })
+    // No-op navigate: finish the OAuth transfer in place and exchange exactly once on this page.
+    // If Google was cancelled or Clerk still needs input, no session exists → caller shows a retry message.
+    try {
+      await clerk.handleRedirectCallback({ signInFallbackRedirectUrl: `${CALLBACK_PATH}?done=1`, signUpFallbackRedirectUrl: `${CALLBACK_PATH}?done=1` }, async () => {})
+    } catch { return { status: 'pending' } }
     if (!clerk.session) return { status: 'pending' }
   }
   return exchange(clerk)

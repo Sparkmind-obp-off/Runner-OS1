@@ -118,12 +118,12 @@ export class ClerkClient implements ClerkGateway {
     if (response.status === 404) throw invalidToken()
     if (!response.ok) throw new AppError('IDENTITY_PROVIDER_UNAVAILABLE', 'Layanan login sedang tidak dapat dihubungi.', 503)
     const user = await response.json() as any
-    const primary = Array.isArray(user.email_addresses) ? user.email_addresses.find((item: any) => item.id === user.primary_email_address_id) : null
+    const email = resolveVerifiedEmail(user)
     const name = [user.first_name, user.last_name].filter((part: unknown) => typeof part === 'string' && part.trim()).join(' ').trim()
     return {
       id: String(user.id),
-      primaryEmail: typeof primary?.email_address === 'string' ? primary.email_address.trim().toLowerCase() : null,
-      primaryEmailVerified: primary?.verification?.status === 'verified',
+      primaryEmail: email.address,
+      primaryEmailVerified: email.verified,
       displayName: (name || user.username || 'Runner').toString().slice(0, 80),
     }
   }
@@ -159,6 +159,22 @@ export class ClerkClient implements ClerkGateway {
     if (cached) return cached.keys
     throw new AppError('IDENTITY_PROVIDER_UNAVAILABLE', 'Kunci verifikasi login belum dapat dimuat.', 503)
   }
+}
+
+/**
+ * Picks the user's email. Prefers Clerk's primary email address; when the instance has the
+ * email attribute disabled (Google-only), falls back to the email of a *verified* Google external account.
+ */
+export function resolveVerifiedEmail(user: any): { address: string | null; verified: boolean } {
+  const normalize = (value: unknown) => typeof value === 'string' && value.includes('@') ? value.trim().toLowerCase() : null
+  const emails = Array.isArray(user?.email_addresses) ? user.email_addresses : []
+  const primary = emails.find((item: any) => item?.id === user?.primary_email_address_id) ?? null
+  if (primary && normalize(primary.email_address) && primary.verification?.status === 'verified') return { address: normalize(primary.email_address), verified: true }
+  const externals = Array.isArray(user?.external_accounts) ? user.external_accounts : []
+  const google = externals.find((item: any) => (item?.provider === 'oauth_google' || item?.provider === 'google') && normalize(item.email_address) && item.verification?.status === 'verified')
+  if (google) return { address: normalize(google.email_address), verified: true }
+  const fallback = normalize(primary?.email_address) ?? normalize(externals[0]?.email_address)
+  return { address: fallback, verified: false }
 }
 
 async function importPem(pem: string): Promise<CryptoKey> {

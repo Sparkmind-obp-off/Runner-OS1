@@ -27,7 +27,7 @@ async function api(path, options = {}) {
     error.details = payload.error?.details
     if (response.status === 401 && error.code === 'AUTH_REQUIRED') {
       state.user = null
-      renderAuth('login', 'Your session expired. Sign in again to continue.')
+      renderAuth('welcome', 'Sesi berakhir. Lanjutkan dengan Google untuk masuk lagi.')
     }
     throw error
   }
@@ -53,7 +53,7 @@ async function handleClerkCallback() {
   app.innerHTML = '<section class="loading-state" aria-live="polite">Menyelesaikan login Google…</section>'
   try {
     const result = await completeCallback()
-    if (result.status === 'pending') { history.replaceState({}, '', '/'); return renderAuth('login', 'Login Google belum selesai. Silakan coba lagi.') }
+    if (result.status === 'pending') { history.replaceState({}, '', '/'); return renderAuth('welcome', 'Login Google dibatalkan atau belum selesai. Silakan coba lagi.') }
     history.replaceState({}, '', result.intent === 'link' ? '/profile' : '/')
     state.view = routeView()
     if (result.intent === 'link') toast('Akun Google berhasil dihubungkan')

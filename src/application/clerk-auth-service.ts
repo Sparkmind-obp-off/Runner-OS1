@@ -44,7 +44,7 @@ export class ClerkAuthService {
     const collision = await this.store.findUserByEmail(profile.primaryEmail)
     if (collision) {
       await this.audit(collision.id, 'identity.link_required', {})
-      throw new AppError('ACCOUNT_LINK_REQUIRED', 'Email ini sudah terdaftar di Runner OS. Masuk dengan kata sandi lama terlebih dahulu, lalu hubungkan Google dari halaman Profil.', 409)
+      throw new AppError('ACCOUNT_LINK_REQUIRED', 'Email ini sudah dipakai akun Runner OS lama. Demi keamanan, akun tidak digabung otomatis. Buka Profil dari sesi lama yang masih aktif lalu pilih "Hubungkan akun Google", atau hubungi dukungan untuk pemulihan akun terverifikasi.', 409)
     }
 
     const now = this.runtime.now()

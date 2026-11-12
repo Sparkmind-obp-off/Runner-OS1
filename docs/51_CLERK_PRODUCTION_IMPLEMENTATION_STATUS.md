@@ -1,6 +1,8 @@
 # 51 — Clerk Production (Google sign-in): Implementation Status & Handoff
 
-**Date:** 2026-11-12 · **Baseline commit:** `1742863` (main) · **Scope:** Workstream 1 (Identity) from Doc 50, section E.
+**Date:** 2026-11-12 (updated 2026-11-13) · **Baseline commit:** `1742863` (main) · **Scope:** Workstream 1 (Identity) from Doc 50, section E.
+
+> **Current status summary (2026-11-13) — see §12 for evidence.** Google-only code on branch `feat/clerk-production-only-auth` (PR #4): IMPLEMENTED + TESTED (109/109). Production (`main` @ `4a5ee61`): DEPLOYED but **Google sign-in is broken in production** (clerk-js v5 rejected by Clerk as outdated; CSP blocks Clerk Protect) and password endpoints are still live. The fixes are only on the branch; merge + deploy need owner authorization. Real Google login: NOT RUN. Old `CLERK_SECRET_KEY` still valid → rotation REQUIRED.
 
 Status vocabulary follows Doc 50 A11: IMPLEMENTED / TESTED / DEPLOYED / PRODUCTION VERIFIED / BLOCKED / NOT RUN.
 
@@ -46,14 +48,14 @@ The prior DNS permission limitation is no longer a blocker: Clerk's live domain 
 | API: `GET /api/auth/config`, `POST /api/auth/clerk/session`, `POST /api/auth/clerk/link`, `GET /api/auth/identities` | IMPLEMENTED, TESTED | `src/index.ts`, `src/http/schemas.ts` |
 | Fail-closed: Clerk enabled only if `CLERK_PUBLISHABLE_KEY` **and** `CLERK_SECRET_KEY` exist; password register/login are disabled by default and never used as fallback | IMPLEMENTED in current branch; tests added | `src/index.ts` |
 | CSP extended only when Clerk configured (Clerk FAPI origin, Cloudflare Turnstile, `img.clerk.com`) | IMPLEMENTED, TESTED | `buildCsp()` in `src/index.ts` |
-| Frontend: one Google sign-in entry point, `/sso-callback`, explicit account linking from an existing session, Clerk sign-out on logout; no email/password form or fallback | IMPLEMENTED in current branch; browser flow NOT RUN end-to-end | `public/static/clerk-auth.js`, `public/static/app.js`, `style.css` |
+| Frontend: one Google sign-in entry point, `/sso-callback`, explicit account linking from an existing session, Clerk sign-out on logout; no email/password form or fallback | IMPLEMENTED + browser-TESTED up to Google consent on branch (§12); real Google login NOT RUN | `public/static/clerk-auth.js`, `public/static/app.js`, `style.css` |
 | Legacy password register/login | RETIRED by default; test-only fixture flag is opt-in; old sessions remain valid only for explicit Google linking until expiry | `src/index.ts`, tests |
 
 Internal sessions issued from a Clerk sign-in last 7 days. The Clerk token is only used once as a bridge; the browser never sends an owner id. Existing legacy sessions remain usable for the explicit linking flow, but new password sessions cannot be created.
 
 ## 4. Tests executed
 
-- `npm test` → **91/91 passed** (67 baseline + 24 new in `tests/clerk.test.ts`, using real RSA-2048 keys and signed JWTs).
+- `npm test` → **91/91 passed** at `e129a77` (67 baseline + 24 in `tests/clerk.test.ts`). Superseded: **109/109** on the branch at the 2026-11-13 audit (see Doc 53).
 - Negative cases covered: expired, wrong issuer, wrong `azp`, `nbf` in future, pending session, foreign signing key, unknown `kid`, `alg:none`, tampered payload, malformed/oversized/extra-field bodies, unverified email, email-collision takeover attempt, subject already linked to another tenant, second Google account on same tenant, cross-tenant read, password login on Google-only account, logout revocation, Clerk not configured.
 - `npm run typecheck` clean; `npm run build` OK; `wrangler d1 migrations apply --local` applied 0004.
 - Local `wrangler pages dev` with production Clerk keys: `/api/auth/config` reports `enabled:true, environment:production`; forged token → `401 AUTH_INVALID`.
@@ -75,8 +77,9 @@ Preview deployments must use a separate Clerk development instance (`pk_test_…
 1. **DNS + custom domain — VERIFIED 2026-11-13:** all five CNAME records report `verified:true`; SSL is complete for `clerk.runner-os.biz.id` and `accounts.runner-os.biz.id`; mail records are complete; domain status is `complete`.
 2. **Google OAuth Production — CONFIGURED 2026-11-13:** Clerk reports Google enabled with Client ID and Client Secret configured. Values are intentionally not reproduced here.
 3. **Browser end-to-end — NOT RUN:** still test real Google sign-up/sign-in on `https://runner-os.biz.id`, protected API access, logout, and account linking with data continuity.
-4. **Rotate `CLERK_SECRET_KEY` if not already rotated:** a prior copy was exposed in a chat transcript. Rotate in Clerk, update the Cloudflare Pages encrypted secret through a secure channel, then redeploy. Never paste the secret into chat or GitHub.
-6. Then run the production verification (§7).
+4. **Rotate `CLERK_SECRET_KEY` — REQUIRED (verified 2026-11-13: the exposed key still authenticates against the Clerk Backend API).** Rotate in Clerk, update the Cloudflare Pages encrypted secret, then redeploy. Never paste the secret into chat or GitHub.
+5. **Authorize merge of PR #4 + production deploy** (fixes the broken production sign-in, see §12).
+6. Then run the production verification (§7) with a dedicated owner-controlled Google test account.
 
 ## 7. Production verification still required (Doc 50 E4)
 
@@ -119,3 +122,38 @@ Workstream 0/1 remainder: rate limiting for `/api/auth/*` and `/api/ai/*`, accou
 - Tests retain a clearly named, opt-in test fixture to construct legacy sessions and verify migration/linking. Production uses the default `allowLegacyPasswordAuth:false`.
 
 **Change-set status:** implementation is prepared on branch `feat/clerk-production-only-auth`; it is not yet merged to `main` or deployed. The branch must pass CI and code review before production rollout. Do not claim the production UI or endpoints have changed until merge/deploy is confirmed.
+
+
+## 12. Audit 2026-11-13 — branch hardening, browser evidence, production gap
+
+**Branch:** `feat/clerk-production-only-auth` (PR #4), base `main` @ `4a5ee61`. Full matrix in [Doc 53](53_CLERK_PRODUCTION_QA_REPORT.md); journey in [Doc 52](52_CLERK_GOOGLE_ONLY_USER_JOURNEY.md).
+
+### Live configuration (re-checked, read-only)
+
+| Item | Result |
+|---|---|
+| `clerk.runner-os.biz.id`, `accounts.runner-os.biz.id` DNS + TLS | resolve; JWKS 200 |
+| Clerk instance | `production`; only `oauth_google` enabled; email/password/phone/username attributes **disabled**; sign-up `public` |
+| Google redirect URI (observed in a real browser) | `https://clerk.runner-os.biz.id/v1/oauth_callback`, Google `client_id` present (custom credentials) |
+| Pages production env | `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_AUTHORIZED_PARTIES`, `GROQ_API_KEY` (encrypted); D1 `DB` bound |
+| Pages **preview** env | no Clerk secrets, no D1 binding → preview fails closed (isolated, but not functional) |
+| Exposed `CLERK_SECRET_KEY` | **still valid** → rotation required |
+| Production D1 | 3 users, 0 Clerk identities, 3 unlinked legacy users, 1 user with a still-valid session (counts only; no personal data read) |
+
+### Defects found and fixed on the branch
+
+| # | Defect | Impact | Fix |
+|---|---|---|---|
+| 1 | Clerk Production rejects `clerk-js@5` sign-ins: `403 … "This app uses an outdated version of Clerk"` | **No Google sign-in possible in production** | load `clerk-js@6` |
+| 2 | CSP blocked Clerk Protect (`cdn.protect.clerk.com` script, `*.client.protect.clerk.com:<port>` probes) | sign-in attempts rejected | CSP adds `https://cdn.protect.clerk.com` (script) and `https://*.protect.clerk.com:*` (connect), only when Clerk is configured |
+| 3 | Email attribute disabled on the instance → Clerk users have no `email_addresses`; backend required a primary email | every new Google user would get `403 EMAIL_UNVERIFIED` | `resolveVerifiedEmail()` falls back to the **verified** `oauth_google` external-account email |
+| 4 | `ACCOUNT_LINK_REQUIRED` message told users to log in with a password | contradicts Google-only policy | message now explains explicit linking / verified recovery |
+| 5 | Session-expired banner in English and routed to a removed login mode | wrong UX | Indonesian message on the Google screen |
+| 6 | Callback could exchange twice (navigate + re-boot) and treated cancellation as an error | duplicate requests / confusing UX | in-place `handleRedirectCallback`, explicit "dibatalkan" state |
+| 7 | No CI | PR checks empty | workflow prepared at `docs/ci/github-actions-ci.yml`; installing it in `.github/workflows/` is **BLOCKED** (GitHub App lacks `workflows` permission) — owner action |
+
+Defects 1–3 were proven in a real Chromium against production Clerk; with fixes 1–2 applied the browser reaches Google's consent screen.
+
+### Production state
+
+`main` / production is still `4a5ee61`: `legacyPassword:true`, password register/login live, `clerk-js@5`, CSP without Protect. **Merge + deploy of PR #4 is required and requires owner authorization.** No production deploy, D1 change or secret change was made during this audit.

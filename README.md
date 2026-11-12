@@ -62,8 +62,8 @@ Respons sukses memakai `{ "data": ... }`. Respons error memakai `{ "error": { "c
 
 ### Authentication
 
-- `POST /api/auth/register` — `{ email, displayName, password }`
-- `POST /api/auth/login` — `{ email, password }`
+- `POST /api/auth/register` — **dipensiunkan**: `410 PASSWORD_AUTH_DISABLED`
+- `POST /api/auth/login` — **dipensiunkan**: `410 PASSWORD_AUTH_DISABLED`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/auth/config` — konfigurasi login publik (Clerk aktif/tidak, publishable key, Frontend API)
@@ -170,7 +170,7 @@ curl http://localhost:3000/health
 
 ## Belum diimplementasikan / blocker eksternal
 
-- **Clerk Google sign-in:** custom domain, lima CNAME, SSL, dan kredensial Google OAuth Production sudah terkonfigurasi menurut pemeriksaan Clerk 2026-11-13. Pengujian browser end-to-end login nyata masih **NOT RUN**; jangan klaim production verified sebelum sign-up, sign-in, protected API, logout, dan linking akun lama diuji.
+- **Clerk Google sign-in:** DNS, SSL, dan Google OAuth Production terkonfigurasi. Produksi saat ini (`main` @ `4a5ee61`) **belum bisa login Google** (clerk-js v5 ditolak Clerk, CSP memblokir Clerk Protect); perbaikan ada di PR #4 dan butuh otorisasi merge + deploy. Login Google nyata: **NOT RUN**. `CLERK_SECRET_KEY` lama masih aktif → wajib dirotasi. Lihat [Doc 51](docs/51_CLERK_PRODUCTION_IMPLEMENTATION_STATUS.md), [Doc 52](docs/52_CLERK_GOOGLE_ONLY_USER_JOURNEY.md), [Doc 53](docs/53_CLERK_PRODUCTION_QA_REPORT.md).
 
 - **Strava live OAuth/sync:** boundary, status, normalizer, import contract, dan deduplikasi sudah tersedia; callback OAuth, revocation provider, serta encrypted token storage diblokir sampai kredensial dan kebijakan penyimpanan token produksi tersedia. Tidak ada sync palsu.
 - **Groq live response:** adapter, application service, endpoint, mock tests, dan error normalization tersedia. Cloudflare melaporkan nama secret `GROQ_API_KEY` sudah terkonfigurasi secara encrypted, tetapi nilai secret tidak dibaca atau diubah pada workflow ini. Live provider belum boleh dianggap terverifikasi sampai pemilik menjalankan authenticated safe-prompt test.
@@ -186,7 +186,7 @@ curl http://localhost:3000/health
 
 ## Status
 
-- **Clerk identity (2026-11-13):** server verification, identity mapping, explicit legacy-account linking, dan UI Google-only telah diimplementasikan. DNS/SSL/Google OAuth Production sudah dikonfigurasi; browser end-to-end masih NOT RUN. Perubahan Clerk-only sedang disiapkan di branch `feat/clerk-production-only-auth`; lihat Doc 51.
+- **Clerk Google-only (2026-11-13):** IMPLEMENTED + TESTED di branch `feat/clerk-production-only-auth` (109/109 tes, typecheck, build, migrasi D1 terisolasi; CI workflow siap di `docs/ci/` tetapi belum terpasang — perlu izin `workflows`). Browser (Chromium) dengan build branch terhadap Clerk Production mencapai halaman consent Google. Belum di-merge/di-deploy; login Google nyata NOT RUN. Detail: Doc 51–53.
 
 - **Phase 1–5 code:** implemented dan terverifikasi lokal: 67/67 automated tests lulus, typecheck lulus, production build lulus, tiga migration D1 lulus pada database lokal bersih, dependency audit menemukan 0 vulnerability, API smoke test lulus, dan browser console tidak memiliki error.
 - **Strava live:** blocked oleh kredensial/OAuth token-storage prerequisite.

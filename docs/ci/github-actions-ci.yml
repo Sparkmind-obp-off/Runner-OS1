@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Migrations apply cleanly on an isolated local D1
+        run: npx wrangler d1 migrations apply runner-os-core-production --local --persist-to .ci-d1
+      - name: No password input in shipped frontend
+        run: "! grep -rn 'type=\"password\"' dist/static/"
+      - name: No Clerk secret keys in source or bundle
+        run: "! grep -rnE 'sk_(live|test)_[A-Za-z0-9]{10,}' dist/ src/ public/"

@@ -279,10 +279,12 @@ export function buildCsp(clerkOrigin: string | null): string {
   const clerk = clerkOrigin ? ` ${clerkOrigin}` : ''
   return [
     "default-src 'self'",
-    `script-src 'self' https://static.cloudflareinsights.com${clerk}${clerkOrigin ? ' https://challenges.cloudflare.com' : ''}`,
+    // Clerk Protect (bot/abuse protection used by Clerk Production sign-in) loads from cdn.protect.clerk.com
+    // and probes *.client.protect.clerk.com on non-default ports; without these, sign-in attempts are rejected.
+    `script-src 'self' https://static.cloudflareinsights.com${clerk}${clerkOrigin ? ' https://challenges.cloudflare.com https://cdn.protect.clerk.com' : ''}`,
     clerkOrigin ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
     `img-src 'self' data:${clerkOrigin ? ' https://img.clerk.com' : ''}`,
-    `connect-src 'self' https://cloudflareinsights.com${clerk}`,
+    `connect-src 'self' https://cloudflareinsights.com${clerk}${clerkOrigin ? ' https://*.protect.clerk.com:*' : ''}`,
     ...(clerkOrigin ? ["frame-src https://challenges.cloudflare.com", "worker-src 'self' blob:"] : []),
     "base-uri 'self'",
     "form-action 'self'",
