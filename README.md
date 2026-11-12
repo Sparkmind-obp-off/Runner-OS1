@@ -232,6 +232,10 @@ The target product model and boundaries for multi-user SaaS, agentic services, u
 
 **Strava boundary:** Live multi-user OAuth remains blocked until written Strava policy clearance for this exact AI-assisted running SaaS use case. Credentials or athlete consent alone do not clear the gate. Strava API data must remain excluded from Runner OS AI/agent processing under the current policy decision.
 
+## Customer journey & UX improvements (Doc 38)
+
+The first UX audit and improvement pass is documented in [38 — Customer Journey, UX Audit & Improvement Plan](docs/38_CUSTOMER_JOURNEY_UX_AUDIT_AND_IMPROVEMENT_PLAN.md). The audit branch improves the welcome proposition, progressive onboarding, progress feedback, first cockpit actions and Indonesian navigation labels. Remaining work includes Clerk migration, task-oriented agent UX, account lifecycle, complete localization and real-device accessibility QA.
+
 ## User access, onboarding & operations (Docs 32–36)
 
 Dokumentasi untuk pengguna eksternal dan operator:
