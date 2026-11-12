@@ -177,3 +177,13 @@ curl http://localhost:3000/health
 - **Production Phase 5:** deployed via Cloudflare BYOK ke `runner-os`; `/health`, static asset, unauthenticated AI rejection, canonical Pages origin, deployment preview, dan custom domain telah diverifikasi. Live authenticated Groq response belum diuji pada workflow ini.
 - **Lint:** tidak ada script lint terpisah; quality gate statis menggunakan TypeScript `tsc --noEmit`.
 - **Last updated:** 2026-09-17
+
+
+## Phase 6 — Agentic Runner OS (architecture defined; implementation pending)
+
+The next evolution is documented in:
+
+- [Phase 6 Agentic Runner OS Architecture](docs/17_AGENTIC_RUNNER_OS_ARCHITECTURE.md)
+- [Phase 6 Agentic Implementation Master Prompt](docs/18_PHASE_6_AGENTIC_IMPLEMENTATION_PROMPT.md)
+
+These documents define a TypeScript-first, Cloudflare-native orchestration architecture, specialist agents, durable workflows, user-controlled memory, approval-gated tools, and a read-only Strava OAuth/sync path. They are target specifications, not evidence that Phase 6 code or live Strava integration has shipped. The last recorded Phase 1–5 verification remains dated 2026-09-17; rerun tests and verify production health before relying on that status.
