@@ -158,7 +158,7 @@ export async function selectAIContext(store: RunStore, ownerId: string, question
     })
   }
 
-  for (const item of activities.slice(0, MAX_CONTEXT_ITEMS)) {
+  for (const item of activities.filter((activity) => activity.source !== 'strava').slice(0, MAX_CONTEXT_ITEMS)) {
     items.push({
       kind: 'running_activity', provenance: item.source === 'strava' ? 'authorized_integration' : 'local_recorded', certainty: 'historical',
       data: compact({ startedAt: item.startedAt, durationSeconds: item.durationSeconds, distanceMeters: item.distanceMeters, paceSecondsPerKm: item.paceSecondsPerKm, effort: item.effort, feeling: item.feeling, source: item.source }),
