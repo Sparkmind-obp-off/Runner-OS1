@@ -57,3 +57,24 @@ Cloudflare Agents SDK + Workflows is first runtime candidate. LangGraph.js is op
 
 ## Acceptance
 Secrets remain server-side; least privilege and consent; outage does not corrupt records; retries are idempotent; disconnect works; status is truthful; logs are redacted.
+
+## Multi-user app registration and launch gate
+
+**One Runner OS Strava application; one Strava account per Runner OS user.** Runner OS registers and owns a single Strava developer application (its client ID and client secret stay server-side). Each Runner OS user separately signs in to their own Strava account on Strava's official OAuth page and grants Runner OS permission. Never ask every Runner OS user to create a developer app, and never share one athlete's access/refresh tokens with another user.
+
+Strava's current onboarding restrictions are a launch gate:
+- Creating a Strava API application requires the developer to have a Strava subscription.
+- Every new API application starts in **single-player mode**: only the Strava account belonging to the app owner can authorize it. This is suitable for local integration development, not a public multi-user launch.
+- Strava's Getting Started guide describes upgrading access in the API settings dashboard to an athlete capacity of 10. Once the app reaches 10 connected athletes and needs to scale further, submit the application for review. Confirm the current dashboard options and review requirements directly with Strava before launch; do not assume a public multi-user quota is automatically granted.
+- Therefore, build and test the OAuth flow with the app owner's own account first. Enable general user connections only after Strava grants the required access level/review.
+- The app has one webhook subscription for all athletes who authorized that application; route each event by its Strava athlete/owner ID to the matching Runner OS integration record.
+
+Data-use boundary: Strava's API Agreement says data supplied by a specific Strava user may only be displayed or disclosed in the Developer Application to that same user. Do not expose one runner's imported activity data to other Runner OS users, public leaderboards, or another tenant—even if the underlying Strava activity is public—unless Strava's current agreement explicitly permits the proposed use.
+
+Token lifecycle is per athlete: OAuth returns that athlete's short-lived access token and refresh token; refreshing may rotate the refresh token, and the old refresh token then stops working. Persist the newly returned token atomically for that same owner. Keep tokens encrypted and server-side. Start with `activity:read`; request `activity:read_all` only when a feature truly requires the athlete's Only You/private activities and the athlete explicitly grants it.
+
+Official launch references:
+- https://developers.strava.com/docs/getting-started/
+- https://developers.strava.com/docs/authentication/
+- https://developers.strava.com/docs/webhooks/
+- https://www.strava.com/legal/api
