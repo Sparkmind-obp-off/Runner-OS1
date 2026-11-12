@@ -25,9 +25,21 @@ async function createRun(cookie: string, overrides: Record<string, unknown> = {}
   return result.body.data
 }
 
-beforeEach(() => { store = new MemoryRunStore(); app = createApp(() => store) })
+beforeEach(() => { store = new MemoryRunStore(); app = createApp(() => store, undefined, undefined, { allowLegacyPasswordAuth: true }) })
 
 describe('Phase 3 authentication and session contract', () => {
+  it('disables password register/login by default and advertises Clerk-only auth', async () => {
+    const clerkOnly = createApp(() => store)
+    for (const path of ['/api/auth/register', '/api/auth/login']) {
+      const response = await clerkOnly.request(`http://localhost${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'retired@example.com', displayName: 'Retired', password: 'correct-horse-battery-staple' }) })
+      expect(response.status).toBe(410)
+      expect((await response.json() as any).error.code).toBe('PASSWORD_AUTH_DISABLED')
+    }
+    const config = await clerkOnly.request('http://localhost/api/auth/config')
+    expect((await config.json() as any).data.legacyPassword).toBe(false)
+    expect(store.users.size).toBe(0)
+  })
+
   it('sets a persistent host-only secure cookie with deliberate production attributes', async () => {
     const response = await app.request('https://runner-os.biz.id/api/auth/register', {
       method:'POST', headers:{'Content-Type':'application/json'},
