@@ -42,7 +42,11 @@ export function createApp(
   storeFactory: StoreFactory = (env) => new D1RunStore(env.DB),
   aiProviderFactory: AIProviderFactory = (env) => env?.GROQ_API_KEY ? new GroqProvider(env.GROQ_API_KEY, env.GROQ_MODEL) : null,
   clerkFactory: ClerkFactory = defaultClerkFactory,
+  options: { allowLegacyPasswordAuth?: boolean } = {},
 ) {
+  // Password auth exists only as a test fixture for explicit legacy-session migration tests.
+  // Production defaults to Clerk-only and never exposes register/login endpoints.
+  const allowLegacyPasswordAuth = options.allowLegacyPasswordAuth === true;
   const app = new Hono<AppEnv>()
 
   app.use('*', async (c, next) => {
@@ -71,6 +75,7 @@ export function createApp(
   }
 
   app.post('/api/auth/register', async (c) => {
+    if (!allowLegacyPasswordAuth) return c.json({ error: { code: 'PASSWORD_AUTH_DISABLED', message: 'Email/password registration has been retired. Continue with Google.' } }, 410)
     const body = await parseBody(c, registerSchema)
     const result = await new AuthService(c.get('store')).register(body.email, body.displayName, body.password)
     setSessionCookie(c, result.token)
@@ -78,6 +83,7 @@ export function createApp(
   })
 
   app.post('/api/auth/login', async (c) => {
+    if (!allowLegacyPasswordAuth) return c.json({ error: { code: 'PASSWORD_AUTH_DISABLED', message: 'Email/password login has been retired. Continue with Google.' } }, 410)
     const body = await parseBody(c, loginSchema)
     const result = await new AuthService(c.get('store')).login(body.email, body.password)
     setSessionCookie(c, result.token)
@@ -93,7 +99,7 @@ export function createApp(
   app.get('/api/auth/config', (c) => {
     const enabled = Boolean(c.env?.CLERK_PUBLISHABLE_KEY && c.env?.CLERK_SECRET_KEY && clerkFrontendApi(c.env))
     return c.json({ data: {
-      legacyPassword: true,
+      legacyPassword: false,
       clerk: enabled
         ? { enabled: true, publishableKey: c.env!.CLERK_PUBLISHABLE_KEY, frontendApi: clerkFrontendApi(c.env), environment: clerkEnvironment(c.env!.CLERK_PUBLISHABLE_KEY!), providers: ['google'] }
         : { enabled: false },
