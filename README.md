@@ -249,3 +249,23 @@ Dokumentasi untuk pengguna eksternal dan operator:
 | [36 — Operations, Support & Incident Runbook](docs/36_OPERATIONS_SUPPORT_AND_INCIDENT_RUNBOOK.md) | Dukungan, insiden keamanan, backup/restore, dan secret handling |
 
 **Public access warning:** docs 34 and 35 are explicitly DRAFT and must not be published as final legal terms. Docs 32–36 do not implement missing account export/deletion, rate limits, or production controls. Public launch remains blocked until the P0 checklist in docs 30 and 33 is verified.
+
+## Personalized Agentic Running OS — Command Center v2 (Docs 39–49)
+
+The unified product direction is **Personalized Agentic Running OS delivered as multi-tenant SaaS**. Agentic OS is the product capability; SaaS is the delivery and business model. The master command center and complete supporting specifications are indexed below.
+
+| Document | Purpose |
+|---|---|
+| [39 — Master Command Center v2](docs/39_AGENTIC_RUNNING_OS_MASTER_COMMAND_CENTER_V2.md) | Unified product decision, principles, system layers, command loop and execution order |
+| [40 — Product Thesis & Requirements](docs/40_PRODUCT_THESIS_POSITIONING_AND_REQUIREMENTS.md) | Category, positioning, target segments, user jobs and success metrics |
+| [41 — Personas, Journey & UX](docs/41_PERSONAS_CUSTOMER_JOURNEY_AND_UX_SPEC.md) | First-session journey, command-center UX, states and accessibility |
+| [42 — Agent Orchestration](docs/42_AGENTIC_ORCHESTRATION_AND_SPECIALIST_AGENT_ARCHITECTURE.md) | Orchestrator, specialist roles, run state machine and evaluation |
+| [43 — Personal Memory & Data](docs/43_PERSONAL_MEMORY_ACTIVITY_DATA_AND_PROVENANCE.md) | Memory controls, activity schema, provenance and AI context policy |
+| [44 — Tool Registry & Approvals](docs/44_TOOL_REGISTRY_APPROVALS_AND_EXECUTION_SAFETY.md) | Typed tools, permissions, approvals, execution controls and verification |
+| [45 — Cloudflare Runtime](docs/45_CLOUDFLARE_TECHNICAL_ARCHITECTURE_AND_RUNTIME.md) | Cloudflare-first architecture, D1 model, durable execution and identity migration |
+| [46 — Security, Privacy & Safety](docs/46_SECURITY_PRIVACY_SAFETY_AND_COMPLIANCE.md) | Tenant security, privacy, running safety, Strava policy and release blockers |
+| [47 — SaaS Economics](docs/47_SAAS_PACKAGING_USAGE_METERING_AND_UNIT_ECONOMICS.md) | Candidate packages, usage metering, billing and contribution margin |
+| [48 — Research & Actor Register](docs/48_MARKET_RESEARCH_EVIDENCE_AND_ACTOR_REGISTER.md) | Competitor hypotheses, limited review sample, Actor pricing and research protocol |
+| [49 — Roadmap & Release Gates](docs/49_EXECUTION_ROADMAP_TEST_STRATEGY_AND_RELEASE_GATES.md) | Phased delivery, test matrix and GO/NO-GO criteria |
+
+**Implementation status:** Docs 39–49 are specifications and decision records, not proof that the described Agentic Core, Clerk migration, approvals, subscription billing or specialist agents have shipped. Existing source and verified deployment state remain authoritative. Do not enable Strava API data in AI/agent context; native/manual activity records remain first-class. Actor discovery/pricing is recorded for research planning; no additional paid Actor run was authorized by this documentation work.
