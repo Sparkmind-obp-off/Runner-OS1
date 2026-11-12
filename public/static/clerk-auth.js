@@ -19,7 +19,7 @@ export function getAuthConfig() {
 
 export async function loadClerk() {
   const config = await getAuthConfig()
-  if (!config.enabled) throw new Error('Login Google belum dikonfigurasi.')
+  if (!config.enabled) throw new Error('Login Google melalui Clerk Production belum dikonfigurasi.')
   if (!clerkPromise) {
     clerkPromise = new Promise((resolve, reject) => {
       if (window.Clerk) return resolve(window.Clerk)
@@ -28,9 +28,9 @@ export async function loadClerk() {
       script.async = true
       script.crossOrigin = 'anonymous'
       script.dataset.clerkPublishableKey = config.publishableKey
-      const timer = setTimeout(() => reject(new Error('Layanan login Google belum dapat dihubungi. Coba lagi nanti atau gunakan email dan kata sandi.')), 15000)
+      const timer = setTimeout(() => reject(new Error('Layanan login Google belum dapat dihubungi. Coba lagi nanti atau hubungi administrator.')), 15000)
       script.onload = () => { clearTimeout(timer); window.Clerk ? resolve(window.Clerk) : reject(new Error('Layanan login Google gagal dimuat.')) }
-      script.onerror = () => { clearTimeout(timer); reject(new Error('Layanan login Google belum dapat dihubungi. Coba lagi nanti atau gunakan email dan kata sandi.')) }
+      script.onerror = () => { clearTimeout(timer); reject(new Error('Layanan login Google belum dapat dihubungi. Coba lagi nanti atau hubungi administrator.')) }
       document.head.append(script)
     }).then(async (clerk) => { await clerk.load(); return clerk })
     clerkPromise.catch(() => { clerkPromise = null })
