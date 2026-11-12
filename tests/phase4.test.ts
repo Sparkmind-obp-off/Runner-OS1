@@ -13,7 +13,7 @@ const profile=(name='Budi')=>({displayName:name,runningArea:'Purwokerto',preferr
 const recurrence=(name='MJW')=>({name,activityType:'community_run',recurrenceRule:'FREQ=WEEKLY;BYDAY=FR',usualDay:'Jumat',usualTime:'malam',usualLocation:null,community:null,expectedDistanceMeters:null,notes:'Mlayu Jumat Wengi; kehadiran tidak diasumsikan.',source:'user_confirmed',relevanceWeight:.85,active:true})
 const event=(eventDate:null|string=null)=>({name:'Skybridge Race Run',aliases:['Sky Bridge Run','Skybridge Run','KAI Daop 5 Skybridge Run'],editionYear:2026,monthHint:'November',eventDate,location:'Purwokerto',organizer:null,distanceOrCategory:null,registrationUrl:null,registrationDeadline:null,sourceUrl:null,status:'candidate',dateStatus:'unverified',participationIntent:'interested',notes:'Tanggal belum terverifikasi.'})
 
-beforeEach(()=>{store=new MemoryRunStore();app=createApp(()=>store)})
+beforeEach(()=>{store=new MemoryRunStore();app=createApp(()=>store, undefined, undefined, { allowLegacyPasswordAuth: true })})
 
 describe('Phase 4 personal runner API',()=>{
   it('requires authentication for all personal resources',async()=>{for(const path of ['/api/profile','/api/home','/api/activities','/api/recurring-activities','/api/events','/api/integrations/strava'])expect((await req(path)).status).toBe(401)})
