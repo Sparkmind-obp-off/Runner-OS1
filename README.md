@@ -186,9 +186,7 @@ The repository audit and current implementation instructions are recorded in:
 - [30 — Full Repository Audit & Remediation Record](docs/30_FULL_REPOSITORY_AUDIT_AND_REMEDIATION_RECORD.md)
 - [31 — Master System Prompt & Genspark Execution Prompt](docs/31_RUNNER_OS_MASTER_SYSTEM_PROMPT_AND_GENSPARK_EXECUTION_PROMPT.md)
 
-The audit identified and fixed a critical policy boundary: Strava-sourced activities are excluded from AI context at data-selection time, with regression coverage. The Strava status API and profile UI now report the integration as deferred/unavailable; no OAuth or sync is claimed. These changes are on the remediation branch and are not yet merged or deployed.
-
-The audit also records outstanding P0 release gates: rerun the test/typecheck/build/security suite on the branch, add server-side abuse controls, complete account export/deletion and privacy/terms, and verify live Groq and Cloudflare production behavior. The audit was based on repository source retrieval; it is not a production penetration test or live deployment verification.
+The audit records the Strava AI exclusion boundary and the outstanding P0 release gates. Verify the current default-branch source and commit history before treating any remediation as merged or deployed. Required follow-up includes a fresh test/typecheck/build/security run, server-side abuse controls, account export/deletion, privacy/terms review, and live Groq/Cloudflare verification. The audit is source inspection, not a production penetration test.
 
 ## Phase 6 — Agentic Runner OS (architecture defined; implementation pending)
 
@@ -250,7 +248,7 @@ Dokumentasi untuk pengguna eksternal dan operator:
 
 **Public access warning:** docs 34 and 35 are explicitly DRAFT and must not be published as final legal terms. Docs 32–36 do not implement missing account export/deletion, rate limits, or production controls. Public launch remains blocked until the P0 checklist in docs 30 and 33 is verified.
 
-## Personalized Agentic Running OS — Command Center v2 (Docs 39–49)
+## Genspark full implementation master prompt (Doc 50)\n\nUse [50 — Genspark Master System Prompt: Full Runner OS Implementation](docs/50_GENSPARK_MASTER_SYSTEM_PROMPT_FULL_IMPLEMENTATION.md) as the single paste-ready execution prompt when asking Genspark.ai to audit and implement the remaining product. It consolidates the product direction, repository constraints, Strava policy gate, agentic command-center architecture, identity/security, SaaS controls, research budget rules, tests, release gates and reporting requirements. It instructs Genspark to inspect the live repository first and distinguish implemented, tested, deployed and production-verified work.\n\n## Personalized Agentic Running OS — Command Center v2 (Docs 39–49)
 
 The unified product direction is **Personalized Agentic Running OS delivered as multi-tenant SaaS**. Agentic OS is the product capability; SaaS is the delivery and business model. The master command center and complete supporting specifications are indexed below.
 
