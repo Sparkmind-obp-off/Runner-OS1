@@ -1,4 +1,4 @@
-import type { EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../domain/models'
+import type { AuthEvent, ExternalIdentity, EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../domain/models'
 
 export interface RunStore {
   createUser(user: User): Promise<void>
@@ -8,6 +8,15 @@ export interface RunStore {
   findSessionByTokenHash(tokenHash: string): Promise<Session | null>
   deleteSessionByTokenHash(tokenHash: string): Promise<void>
   deleteExpiredSessions(now: string): Promise<void>
+
+  findExternalIdentity(provider: 'clerk', subject: string): Promise<ExternalIdentity | null>
+  findExternalIdentityByOwner(ownerId: string, provider: 'clerk'): Promise<ExternalIdentity | null>
+  /** Atomically create a user together with its first external identity. Must throw on unique violation. */
+  createUserWithIdentity(user: User, identity: ExternalIdentity): Promise<void>
+  /** Must throw on unique violation (provider+subject or owner+provider). */
+  createExternalIdentity(identity: ExternalIdentity): Promise<void>
+  touchExternalIdentity(id: string, lastSeenAt: string): Promise<void>
+  recordAuthEvent(event: AuthEvent): Promise<void>
 
   createRunWithEvent(run: Run, event: RunEvent): Promise<void>
   getRun(ownerId: string, runId: string): Promise<Run | null>

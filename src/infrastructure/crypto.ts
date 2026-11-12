@@ -38,7 +38,8 @@ export async function hashPassword(password: string, salt = bytesToBase64(crypto
 }
 
 export async function verifyPassword(password: string, expectedHash: string, salt: string): Promise<boolean> {
-  const { hash } = await hashPassword(password, salt)
+  let hash: string
+  try { ({ hash } = await hashPassword(password, salt)) } catch { return false }
   if (hash.length !== expectedHash.length) return false
   let diff = 0
   for (let index = 0; index < hash.length; index += 1) diff |= hash.charCodeAt(index) ^ expectedHash.charCodeAt(index)

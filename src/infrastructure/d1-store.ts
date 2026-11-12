@@ -1,5 +1,5 @@
 import type { RunStore } from '../application/ports'
-import type { EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../domain/models'
+import type { AuthEvent, ExternalIdentity, EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../domain/models'
 
 type Row = Record<string, any>
 interface UserRow extends Row { id:string; email:string; display_name:string; password_hash:string; password_salt:string; created_at:string }
@@ -17,6 +17,14 @@ export class D1RunStore implements RunStore {
   async findSessionByTokenHash(hash:string) { return mapSession(await this.db.prepare('SELECT * FROM sessions WHERE token_hash = ?').bind(hash).first<SessionRow>()) }
   async deleteSessionByTokenHash(hash:string) { await this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(hash).run() }
   async deleteExpiredSessions(now:string) { await this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now).run() }
+
+  async findExternalIdentity(provider:'clerk',subject:string) { return mapIdentity(await this.db.prepare('SELECT * FROM external_identities WHERE provider=? AND subject=?').bind(provider,subject).first<Row>()) }
+  async findExternalIdentityByOwner(ownerId:string,provider:'clerk') { return mapIdentity(await this.db.prepare('SELECT * FROM external_identities WHERE owner_id=? AND provider=?').bind(ownerId,provider).first<Row>()) }
+  async createUserWithIdentity(user:User,identity:ExternalIdentity) { await this.db.batch([this.db.prepare('INSERT INTO users (id,email,display_name,password_hash,password_salt,created_at) VALUES (?,?,?,?,?,?)').bind(user.id,user.email,user.displayName,user.passwordHash,user.passwordSalt,user.createdAt),this.insertIdentity(identity)]) }
+  async createExternalIdentity(identity:ExternalIdentity) { await this.insertIdentity(identity).run() }
+  async touchExternalIdentity(id:string,lastSeenAt:string) { await this.db.prepare('UPDATE external_identities SET last_seen_at=? WHERE id=?').bind(lastSeenAt,id).run() }
+  async recordAuthEvent(e:AuthEvent) { await this.db.prepare('INSERT INTO auth_events (id,owner_id,event_type,provider,metadata,created_at) VALUES (?,?,?,?,?,?)').bind(e.id,e.ownerId,e.eventType,e.provider,JSON.stringify(e.metadata),e.createdAt).run() }
+  private insertIdentity(i:ExternalIdentity) { return this.db.prepare('INSERT INTO external_identities (id,owner_id,provider,subject,email_at_link,created_at,last_seen_at) VALUES (?,?,?,?,?,?,?)').bind(i.id,i.ownerId,i.provider,i.subject,i.emailAtLink,i.createdAt,i.lastSeenAt) }
 
   async createRunWithEvent(run:Run,event:RunEvent) { await this.db.batch([this.insertRun(run),this.insertEvent(event)]) }
   async getRun(ownerId:string,runId:string) { return mapRun(await this.db.prepare('SELECT * FROM runs WHERE id=? AND owner_id=?').bind(runId,ownerId).first<RunRow>()) }
@@ -69,3 +77,4 @@ const mapRunningEvent=(r:Row):RunningEvent=>({id:r.id,ownerId:r.owner_id,name:r.
 const mapRunningEventOrNull=(r:Row|null)=>r?mapRunningEvent(r):null
 const mapEvidence=(r:Row):EventEvidence=>({id:r.id,ownerId:r.owner_id,eventId:r.event_id,evidenceType:r.evidence_type,evidenceStrength:r.evidence_strength,sourceUrl:r.source_url,observedAt:r.observed_at,notes:r.notes,createdAt:r.created_at})
 const mapIntegration=(r:Row|null):IntegrationAccount|null=>r?{id:r.id,ownerId:r.owner_id,provider:r.provider,providerUserId:r.provider_user_id,status:r.status,scopes:array(r.scopes),connectedAt:r.connected_at,lastSyncedAt:r.last_synced_at,lastErrorCode:r.last_error_code,createdAt:r.created_at,updatedAt:r.updated_at}:null
+const mapIdentity=(r:Row|null):ExternalIdentity|null=>r?{id:r.id,ownerId:r.owner_id,provider:r.provider,subject:r.subject,emailAtLink:r.email_at_link,createdAt:r.created_at,lastSeenAt:r.last_seen_at}:null

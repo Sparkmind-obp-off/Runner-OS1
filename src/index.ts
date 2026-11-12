@@ -8,10 +8,12 @@ import { Phase4Service } from './application/phase4-service'
 import { AIApplicationService, GroqProvider, type AIProvider } from './application/ai-service'
 import { AppError } from './domain/errors'
 import { D1RunStore } from './infrastructure/d1-store'
-import { activitySchema, aiQuestionSchema, blockSchema, createRunSchema, evidenceSchema, focusSchema, listRunsSchema, loginSchema, nextActionSchema, occurrenceQuerySchema, occurrenceSchema, profileSchema, progressSchema, recurringSchema, registerSchema, runningEventSchema, todayQuerySchema, updateRunSchema } from './http/schemas'
+import { ClerkClient, clerkEnvironment, frontendApiFromPublishableKey, type ClerkGateway } from './infrastructure/clerk'
+import { ClerkAuthService } from './application/clerk-auth-service'
+import { activitySchema, aiQuestionSchema, clerkTokenSchema, blockSchema, createRunSchema, evidenceSchema, focusSchema, listRunsSchema, loginSchema, nextActionSchema, occurrenceQuerySchema, occurrenceSchema, profileSchema, progressSchema, recurringSchema, registerSchema, runningEventSchema, todayQuerySchema, updateRunSchema } from './http/schemas'
 import { renderShell } from './view'
 
-type Bindings = { DB: D1Database; GROQ_API_KEY?: string; GROQ_MODEL?: string; STRAVA_CLIENT_ID?: string; STRAVA_CLIENT_SECRET?: string }
+type Bindings = { DB: D1Database; GROQ_API_KEY?: string; GROQ_MODEL?: string; STRAVA_CLIENT_ID?: string; STRAVA_CLIENT_SECRET?: string; CLERK_PUBLISHABLE_KEY?: string; CLERK_SECRET_KEY?: string; CLERK_JWT_KEY?: string; CLERK_AUTHORIZED_PARTIES?: string }
 type Variables = { user: PublicUser; store: RunStore }
 type AppEnv = { Bindings: Bindings; Variables: Variables }
 
@@ -19,10 +21,27 @@ const SESSION_COOKIE = 'runner_session'
 
 type StoreFactory = (env: Bindings) => RunStore
 type AIProviderFactory = (env: Bindings) => AIProvider | null
+type ClerkFactory = (env: Bindings) => ClerkGateway | null
+
+/** Clerk is enabled only when BOTH the public key and the server secret are configured (fail closed). */
+export const defaultClerkFactory: ClerkFactory = (env) => {
+  if (!env?.CLERK_PUBLISHABLE_KEY || !env?.CLERK_SECRET_KEY) return null
+  return new ClerkClient({ publishableKey: env.CLERK_PUBLISHABLE_KEY, secretKey: env.CLERK_SECRET_KEY, jwtKey: env.CLERK_JWT_KEY, authorizedParties: parseParties(env.CLERK_AUTHORIZED_PARTIES) })
+}
+
+function parseParties(raw?: string): string[] {
+  return (raw ?? '').split(',').map((item) => item.trim()).filter((item) => /^https?:\/\/[a-z0-9.:-]+$/i.test(item))
+}
+
+function clerkFrontendApi(env?: Bindings): string | null {
+  if (!env?.CLERK_PUBLISHABLE_KEY) return null
+  try { return frontendApiFromPublishableKey(env.CLERK_PUBLISHABLE_KEY) } catch { return null }
+}
 
 export function createApp(
   storeFactory: StoreFactory = (env) => new D1RunStore(env.DB),
   aiProviderFactory: AIProviderFactory = (env) => env?.GROQ_API_KEY ? new GroqProvider(env.GROQ_API_KEY, env.GROQ_MODEL) : null,
+  clerkFactory: ClerkFactory = defaultClerkFactory,
 ) {
   const app = new Hono<AppEnv>()
 
@@ -34,7 +53,7 @@ export function createApp(
       c.header('X-Frame-Options', 'DENY')
       c.header('Referrer-Policy', 'no-referrer')
       c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-      c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+      c.header('Content-Security-Policy', buildCsp(clerkFrontendApi(c.env)))
       if (isSecureRequest(c.req.url)) c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     }
   })
@@ -69,6 +88,34 @@ export function createApp(
     await new AuthService(c.get('store')).logout(getCookie(c, SESSION_COOKIE))
     deleteCookie(c, SESSION_COOKIE, sessionCookieScope(c.req.url))
     return c.json({ data: { success: true } })
+  })
+
+  app.get('/api/auth/config', (c) => {
+    const enabled = Boolean(c.env?.CLERK_PUBLISHABLE_KEY && c.env?.CLERK_SECRET_KEY && clerkFrontendApi(c.env))
+    return c.json({ data: {
+      legacyPassword: true,
+      clerk: enabled
+        ? { enabled: true, publishableKey: c.env!.CLERK_PUBLISHABLE_KEY, frontendApi: clerkFrontendApi(c.env), environment: clerkEnvironment(c.env!.CLERK_PUBLISHABLE_KEY!), providers: ['google'] }
+        : { enabled: false },
+    } })
+  })
+
+  app.post('/api/auth/clerk/session', async (c) => {
+    const { token } = await parseBody(c, clerkTokenSchema)
+    const result = await new ClerkAuthService(c.get('store'), requireClerk(c.env)).signIn(token)
+    setSessionCookie(c, result.token, 60 * 60 * 24 * 7)
+    return c.json({ data: { ...result.user, created: result.created } }, result.created ? 201 : 200)
+  })
+
+  app.post('/api/auth/clerk/link', requireAuth, async (c) => {
+    const { token } = await parseBody(c, clerkTokenSchema)
+    return c.json({ data: await new ClerkAuthService(c.get('store'), requireClerk(c.env)).link(c.get('user').id, token) })
+  })
+
+  app.get('/api/auth/identities', requireAuth, async (c) => {
+    const gateway = clerkFactory(c.env)
+    const identity = await c.get('store').findExternalIdentityByOwner(c.get('user').id, 'clerk')
+    return c.json({ data: { google: { available: Boolean(gateway), linked: Boolean(identity), linkedAt: identity?.createdAt ?? null } } })
   })
 
   app.get('/api/auth/me', async (c) => {
@@ -173,6 +220,12 @@ export function createApp(
 
   return app
 
+  function requireClerk(env?: Bindings): ClerkGateway {
+    const gateway = clerkFactory(env as Bindings)
+    if (!gateway) throw new AppError('IDENTITY_PROVIDER_UNAVAILABLE', 'Login Google belum dikonfigurasi. Gunakan email dan kata sandi.', 503)
+    return gateway
+  }
+
   function runs(c: { get: (key: 'store') => RunStore }) { return new RunService(c.get('store')) }
   function phase4(c: { get: (key: 'store') => RunStore }) { return new Phase4Service(c.get('store')) }
   async function lifecycle(c: any, action: 'start' | 'pause' | 'resume' | 'complete' | 'archive') {
@@ -207,12 +260,28 @@ function sessionCookieScope(url: string) {
   }
 }
 
-function setSessionCookie(c: any, token: string): void {
+function setSessionCookie(c: any, token: string, maxAge = 60 * 60 * 24 * 30): void {
   setCookie(c, SESSION_COOKIE, token, {
     ...sessionCookieScope(c.req.url),
     httpOnly: true,
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge,
   })
+}
+
+/** CSP: Clerk origins are added only when Clerk is configured. Clerk injects runtime styles, hence 'unsafe-inline' for style-src only. */
+export function buildCsp(clerkOrigin: string | null): string {
+  const clerk = clerkOrigin ? ` ${clerkOrigin}` : ''
+  return [
+    "default-src 'self'",
+    `script-src 'self' https://static.cloudflareinsights.com${clerk}${clerkOrigin ? ' https://challenges.cloudflare.com' : ''}`,
+    clerkOrigin ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
+    `img-src 'self' data:${clerkOrigin ? ' https://img.clerk.com' : ''}`,
+    `connect-src 'self' https://cloudflareinsights.com${clerk}`,
+    ...(clerkOrigin ? ["frame-src https://challenges.cloudflare.com", "worker-src 'self' blob:"] : []),
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ')
 }
 
 export default createApp()

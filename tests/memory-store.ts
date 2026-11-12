@@ -1,10 +1,18 @@
 import type { RunStore } from '../src/application/ports'
-import type { EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../src/domain/models'
+import type { AuthEvent, ExternalIdentity, EventEvidence, IntegrationAccount, RecurringActivity, RecurringOccurrence, Run, RunEvent, RunnerProfile, RunningActivity, RunningEvent, Session, User } from '../src/domain/models'
 
 export class MemoryRunStore implements RunStore {
   users=new Map<string,User>(); sessions=new Map<string,Session>(); runs=new Map<string,Run>(); events:RunEvent[]=[]
   profiles=new Map<string,RunnerProfile>(); recurring=new Map<string,RecurringActivity>(); occurrences=new Map<string,RecurringOccurrence>(); activities=new Map<string,RunningActivity>(); runningEvents=new Map<string,RunningEvent>(); evidence:EventEvidence[]=[]; integrations=new Map<string,IntegrationAccount>()
+  identities=new Map<string,ExternalIdentity>(); authEvents:AuthEvent[]=[]
   failNextTransactionalWrite=false
+  async findExternalIdentity(p:'clerk',sub:string){return cloneOrNull([...this.identities.values()].find(i=>i.provider===p&&i.subject===sub)??null)}
+  async findExternalIdentityByOwner(o:string,p:'clerk'){return cloneOrNull([...this.identities.values()].find(i=>i.ownerId===o&&i.provider===p)??null)}
+  async createUserWithIdentity(u:User,i:ExternalIdentity){this.assertIdentityUnique(i);await this.createUser(u);this.identities.set(i.id,clone(i))}
+  async createExternalIdentity(i:ExternalIdentity){if(!this.users.has(i.ownerId))throw new Error('fk');this.assertIdentityUnique(i);this.identities.set(i.id,clone(i))}
+  async touchExternalIdentity(id:string,t:string){const i=this.identities.get(id);if(i)i.lastSeenAt=t}
+  async recordAuthEvent(e:AuthEvent){this.authEvents.push(clone(e))}
+  private assertIdentityUnique(i:ExternalIdentity){for(const x of this.identities.values())if((x.provider===i.provider&&x.subject===i.subject)||(x.ownerId===i.ownerId&&x.provider===i.provider))throw new Error('UNIQUE constraint failed: external_identities')}
   async createUser(u:User){if([...this.users.values()].some(x=>x.email.toLowerCase()===u.email.toLowerCase()))throw new Error('unique');this.users.set(u.id,clone(u))}
   async findUserByEmail(e:string){return cloneOrNull([...this.users.values()].find(u=>u.email.toLowerCase()===e.toLowerCase())??null)}
   async findUserById(id:string){return cloneOrNull(this.users.get(id)??null)}

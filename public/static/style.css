@@ -221,3 +221,9 @@ h3 { margin: 0; letter-spacing: -.02em; }
   .span-2 { grid-column: auto; }
   .actions .button { flex: 1 1 45%; }
 }
+
+.google-button { display: flex; align-items: center; justify-content: center; gap: .6rem; margin-bottom: .25rem; }
+.google-mark { display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: #fff; color: #4285f4; font-weight: 800; border: 1px solid #dadce0; }
+.auth-divider { display: flex; align-items: center; gap: .75rem; margin: 1rem 0; color: #6b7280; font-size: .8rem; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: #e5e7eb; }
+#account-security { margin-bottom: 1rem; }

@@ -28,7 +28,8 @@ export class AuthService {
 
   async login(email: string, password: string): Promise<{ user: PublicUser; token: string }> {
     const user = await this.store.findUserByEmail(email.trim().toLowerCase())
-    if (!user || !(await verifyPassword(password, user.passwordHash, user.passwordSalt))) {
+    // Google-only (Clerk) accounts carry a non-PBKDF2 marker and can never log in with a password.
+    if (!user || user.passwordHash.startsWith('!') || !(await verifyPassword(password, user.passwordHash, user.passwordSalt))) {
       throw new AppError('AUTH_INVALID', 'Invalid email or password', 401)
     }
     return { user: toPublicUser(user), token: await this.issueSession(user.id) }
@@ -55,10 +56,10 @@ export class AuthService {
     if (token) await this.store.deleteSessionByTokenHash(await sha256(token))
   }
 
-  private async issueSession(ownerId: string): Promise<string> {
+  async issueSession(ownerId: string, days = SESSION_DAYS): Promise<string> {
     const token = randomToken()
     const createdAt = this.runtime.now()
-    const expiresAt = new Date(new Date(createdAt).getTime() + SESSION_DAYS * 86_400_000).toISOString()
+    const expiresAt = new Date(new Date(createdAt).getTime() + days * 86_400_000).toISOString()
     await this.store.createSession({ id: this.runtime.id(), ownerId, tokenHash: await sha256(token), createdAt, expiresAt })
     return token
   }

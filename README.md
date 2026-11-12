@@ -12,6 +12,14 @@ Runner OS adalah **Personal Running Operating System** privat yang membantu pela
 - Runner Core: Run CRUD, lifecycle, next action, progress, blocker, due time, daily focus, tag, pencarian, filter, dan riwayat append-oriented.
 - Security headers, session bootstrap dari server, logout, dan penanganan sesi kedaluwarsa.
 
+### Identity — Clerk Production (Google sign-in) · Doc 51
+
+- Login/daftar dengan Google melalui Clerk Production (`clerk.runner-os.biz.id`), diverifikasi **server-side** (RS256 + JWKS, issuer, `azp`, expiry).
+- Clerk subject dipetakan ke `users.id` internal yang tetap kanonik (`external_identities`); data lama tidak berpindah.
+- Email yang sudah terdaftar **tidak pernah** di-link otomatis (anti-takeover) → pengguna lama masuk dengan kata sandi lalu **Profil → Hubungkan akun Google**.
+- Fail-closed: tanpa `CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`, tombol Google tersembunyi dan login email/kata sandi tetap berjalan.
+- Status produksi lengkap, checklist DNS/Google OAuth, dan rollback: [docs/51](docs/51_CLERK_PRODUCTION_IMPLEMENTATION_STATUS.md).
+
 ### Phase 4 — Hyper-Personalized Runner OS
 
 - Welcome sederhana dengan tindakan utama **Mulai Setup**.
@@ -58,6 +66,10 @@ Respons sukses memakai `{ "data": ... }`. Respons error memakai `{ "error": { "c
 - `POST /api/auth/login` — `{ email, password }`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `GET /api/auth/config` — konfigurasi login publik (Clerk aktif/tidak, publishable key, Frontend API)
+- `POST /api/auth/clerk/session` — `{ token }` token sesi Clerk → cookie sesi Runner OS
+- `POST /api/auth/clerk/link` — (perlu sesi) `{ token }` hubungkan Google ke akun lama
+- `GET /api/auth/identities` — (perlu sesi) status tautan Google
 
 ### Runner Core
 
@@ -152,10 +164,13 @@ curl http://localhost:3000/health
 - Jalankan migration produksi sebelum deployment: `npm run db:migrate:prod`.
 - Server-only AI secret: `GROQ_API_KEY`; optional model configuration: `GROQ_MODEL`.
 - Default adapter model saat `GROQ_MODEL` tidak diatur: `llama-3.3-70b-versatile`; model dapat diganti dari deployment environment tanpa mengubah domain logic.
+- Clerk: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` (secret), `CLERK_AUTHORIZED_PARTIES` (mis. `https://runner-os.biz.id,https://runner-os.pages.dev`), opsional `CLERK_JWT_KEY`.
 - Optional Strava secrets: `STRAVA_CLIENT_ID` dan `STRAVA_CLIENT_SECRET`.
 - Secret dikonfigurasi di luar Git/source code. Genspark tidak membutuhkan atau menerima nilai secret Groq.
 
 ## Belum diimplementasikan / blocker eksternal
+
+- **Clerk Google sign-in live:** kode, migrasi, dan secret siap; **BLOCKED** oleh DNS `clerk.runner-os.biz.id` (+4 CNAME lain) yang belum dibuat dan Google OAuth custom credentials di Clerk Dashboard. Lihat Doc 51 §6.
 
 - **Strava live OAuth/sync:** boundary, status, normalizer, import contract, dan deduplikasi sudah tersedia; callback OAuth, revocation provider, serta encrypted token storage diblokir sampai kredensial dan kebijakan penyimpanan token produksi tersedia. Tidak ada sync palsu.
 - **Groq live response:** adapter, application service, endpoint, mock tests, dan error normalization tersedia. Cloudflare melaporkan nama secret `GROQ_API_KEY` sudah terkonfigurasi secara encrypted, tetapi nilai secret tidak dibaca atau diubah pada workflow ini. Live provider belum boleh dianggap terverifikasi sampai pemilik menjalankan authenticated safe-prompt test.
@@ -170,6 +185,8 @@ curl http://localhost:3000/health
 4. Tambahkan data event hanya dari runner atau sumber publik yang dapat ditelusuri; pertahankan status unverified jika tanggal belum pasti.
 
 ## Status
+
+- **Clerk identity (2026-11-12):** IMPLEMENTED + TESTED (91/91 tests, 24 tes keamanan Clerk baru); migrasi `0004` diterapkan; production handshake **BLOCKED** (DNS + Google OAuth). Detail di Doc 51.
 
 - **Phase 1–5 code:** implemented dan terverifikasi lokal: 67/67 automated tests lulus, typecheck lulus, production build lulus, tiga migration D1 lulus pada database lokal bersih, dependency audit menemukan 0 vulnerability, API smoke test lulus, dan browser console tidak memiliki error.
 - **Strava live:** blocked oleh kredensial/OAuth token-storage prerequisite.

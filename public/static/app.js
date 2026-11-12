@@ -1,3 +1,4 @@
+import { getAuthConfig, loadClerk, startGoogle, isClerkCallback, completeCallback, clerkSignOut } from './clerk-auth.js'
 const app = document.querySelector('#app')
 const localToday = () => {
   const now = new Date()
@@ -34,6 +35,7 @@ async function api(path, options = {}) {
 }
 
 async function boot() {
+  if (isClerkCallback()) return handleClerkCallback()
   try {
     state.user = await api('/api/auth/me')
     if (!state.user) return renderAuth()
@@ -44,6 +46,45 @@ async function boot() {
   } catch (error) {
     if (error.code === 'AUTH_REQUIRED') renderAuth()
     else renderFatal(error)
+  }
+}
+
+async function handleClerkCallback() {
+  app.innerHTML = '<section class="loading-state" aria-live="polite">Menyelesaikan login Google…</section>'
+  try {
+    const result = await completeCallback()
+    if (result.status === 'pending') { history.replaceState({}, '', '/'); return renderAuth('login', 'Login Google belum selesai. Silakan coba lagi.') }
+    history.replaceState({}, '', result.intent === 'link' ? '/profile' : '/')
+    state.view = routeView()
+    if (result.intent === 'link') toast('Akun Google berhasil dihubungkan')
+    return boot()
+  } catch (error) {
+    history.replaceState({}, '', error.intent === 'link' ? '/profile' : '/')
+    state.view = routeView()
+    if (error.intent === 'link') { await boot(); return toast(error.message, true) }
+    return renderAuth('login', error.message)
+  }
+}
+
+async function googleButton(mode) {
+  const config = await getAuthConfig()
+  const slot = document.querySelector('#google-slot')
+  if (!slot || !config.enabled) return
+  // Only offer Google when the identity service is actually reachable; never show a dead button.
+  try { await loadClerk() } catch { return }
+  if (!document.body.contains(slot)) return
+  slot.innerHTML = `<button id="google-signin" class="button ghost full google-button" type="button"><span aria-hidden="true" class="google-mark">G</span> ${mode==='register'?'Daftar':'Masuk'} dengan Google</button><div class="auth-divider" role="separator"><span>atau gunakan email</span></div>`
+  const button = document.querySelector('#google-signin')
+  button.onclick = async () => {
+    button.disabled = true
+    button.setAttribute('aria-busy', 'true')
+    button.textContent = 'Menghubungkan ke Google…'
+    try {
+      const result = await startGoogle('signin')
+      if (result?.status === 'ok') { history.replaceState({}, '', '/'); return boot() }
+    } catch (error) {
+      renderAuth(mode, error.message)
+    }
   }
 }
 
@@ -69,8 +110,9 @@ function renderAuth(mode = 'welcome', message = '') {
     document.querySelector('#returning').onclick=()=>renderAuth('login')
     return
   }
-  app.innerHTML = `<main class="auth-layout"><section class="brand-panel"><div class="brand-mark">Runner OS</div><div><h1>${mode==='login'?'Selamat datang kembali.':'Mulai dari konteksmu.'}</h1><p>Data larimu tetap pribadi dan terikat ke akunmu.</p></div><small>Rencana → Lari → Catat → Pulih</small></section><section class="auth-panel"><div class="auth-card"><div class="eyebrow">${mode==='login'?'Masuk':'Buat akun'}</div><h2>${mode==='login'?'Lanjutkan dari sini.':'Siapkan Runner OS.'}</h2>${message?`<div class="error-banner">${escapeHtml(message)}</div>`:''}<form id="auth-form">${mode==='register'?field('displayName','Nama panggilan','','text',true,'name'):''}${field('email','Email','','email',true,'email')}${field('password','Kata sandi','','password',true,mode==='register'?'new-password':'current-password',mode==='register'?12:1)}<button class="button full" type="submit">${mode==='login'?'Masuk':'Buat akun & mulai setup'}</button></form><p class="subtle"><button id="switch-auth" class="text-button">${mode==='login'?'Belum punya akun? Mulai Setup':'Sudah punya akun? Masuk'}</button></p></div></section></main>`
+  app.innerHTML = `<main class="auth-layout"><section class="brand-panel"><div class="brand-mark">Runner OS</div><div><h1>${mode==='login'?'Selamat datang kembali.':'Mulai dari konteksmu.'}</h1><p>Data larimu tetap pribadi dan terikat ke akunmu.</p></div><small>Rencana → Lari → Catat → Pulih</small></section><section class="auth-panel"><div class="auth-card"><div class="eyebrow">${mode==='login'?'Masuk':'Buat akun'}</div><h2>${mode==='login'?'Lanjutkan dari sini.':'Siapkan Runner OS.'}</h2>${message?`<div class="error-banner" role="alert">${escapeHtml(message)}</div>`:''}<div id="google-slot"></div><form id="auth-form">${mode==='register'?field('displayName','Nama panggilan','','text',true,'name'):''}${field('email','Email','','email',true,'email')}${field('password','Kata sandi','','password',true,mode==='register'?'new-password':'current-password',mode==='register'?12:1)}<button class="button full" type="submit">${mode==='login'?'Masuk':'Buat akun & mulai setup'}</button></form><p class="subtle"><button id="switch-auth" class="text-button">${mode==='login'?'Belum punya akun? Mulai Setup':'Sudah punya akun? Masuk'}</button></p></div></section></main>`
   document.querySelector('#switch-auth').onclick = () => renderAuth(mode === 'login' ? 'register' : 'login')
+  googleButton(mode)
   document.querySelector('#auth-form').onsubmit = async (event) => {
     event.preventDefault()
     const form = event.currentTarget
@@ -178,7 +220,7 @@ function renderHome(){
 function renderActivities(){app.innerHTML=shell(`${header('Riwayat lari','Aktivitas aktual','Catatan faktual dari input manual atau integrasi resmi.',false)}<button class="button" id="add-activity">+ Catat lari</button><section class="activity-list">${state.activities.map(a=>`<article class="panel"><strong>${date(a.startedAt)}</strong><p>${a.distanceMeters?`${(a.distanceMeters/1000).toFixed(2)} km`:'Jarak tidak dicatat'} · ${a.durationSeconds?`${Math.round(a.durationSeconds/60)} menit`:'Durasi tidak dicatat'}</p><small>Sumber: ${escapeHtml(a.source)}</small></article>`).join('')||'<div class="empty">Belum ada riwayat lari.</div>'}</section>`,'activities');document.querySelector('#add-activity').onclick=()=>modal('Catat lari',field('startedAt','Mulai',toLocalInput(new Date().toISOString()),'datetime-local',true)+field('distanceKm','Jarak (km)','','number')+field('durationMinutes','Durasi (menit)','','number')+field('notes','Catatan'),async d=>api('/api/activities',{method:'POST',body:JSON.stringify({startedAt:new Date(d.startedAt).toISOString(),endedAt:null,durationSeconds:d.durationMinutes?Number(d.durationMinutes)*60:null,distanceMeters:d.distanceKm?Number(d.distanceKm)*1000:null,paceSecondsPerKm:null,elevationMeters:null,effort:null,feeling:null,source:'manual',externalId:null,eventId:null,recurringActivityId:null,notes:d.notes||null})}),'Simpan aktivitas')}
 function renderSchedule(){app.innerHTML=shell(`${header('Jadwal','Rutinitas mingguan','Rencana berulang terpisah dari fakta kehadiran.',false)}<button class="button" id="add-recurring">+ Tambah rutinitas</button><section class="activity-list">${state.recurring.map(r=>`<article class="panel"><div class="run-top"><strong>${escapeHtml(r.name)}</strong><span class="badge">${escapeHtml(r.activityType)}</span></div><p>${escapeHtml(r.usualDay||'Hari fleksibel')} · ${escapeHtml(r.usualTime||'waktu belum diatur')}</p><small>${r.name.toLowerCase()==='mjw'?'Mlayu Jumat Wengi · kehadiran tidak dijamin':escapeHtml(r.recurrenceRule)}</small><div class="card-actions"><button class="text-button" data-edit-recurring="${r.id}">Ubah</button><button class="text-button" data-record-occurrence="${r.id}">Catat kehadiran</button></div></article>`).join('')||'<div class="empty">Belum ada rutinitas.</div>'}</section>`,'schedule');document.querySelector('#add-recurring').onclick=()=>recurringModal();document.querySelectorAll('[data-edit-recurring]').forEach(button=>button.onclick=()=>recurringModal(state.recurring.find(item=>item.id===button.dataset.editRecurring)));document.querySelectorAll('[data-record-occurrence]').forEach(button=>button.onclick=()=>occurrenceModal(button.dataset.recordOccurrence))}
 function renderEvents(){app.innerHTML=shell(`${header('Event','Event yang relevan','Relevansi membantu prioritas, bukan prediksi kehadiran.',false)}<button class="button" id="add-skybridge">+ Simpan Skybridge 2026</button><section class="activity-list">${state.events.map(e=>`<article class="panel"><div class="run-top"><strong>${escapeHtml(e.name)}</strong><span class="badge ${e.dateStatus==='unverified'?'upcoming':'active'}">${e.dateStatus}</span></div><p>${e.eventDate?date(e.eventDate):`${escapeHtml(e.monthHint||'Tanggal belum ada')} ${e.editionYear||''} — tanggal belum terverifikasi`}</p><small>Minat: ${escapeHtml(e.participationIntent)} · bukan kepastian hadir</small><div class="card-actions"><button class="text-button" data-add-evidence="${e.id}">Tambah sinyal / bukti</button></div></article>`).join('')||'<div class="empty">Belum ada event pribadi.</div>'}</section>`,'events');document.querySelector('#add-skybridge').onclick=async()=>{try{await api('/api/events',{method:'POST',body:JSON.stringify({name:'Skybridge Race Run',aliases:['Sky Bridge Run','Skybridge Run','KAI Daop 5 Skybridge Run'],editionYear:2026,monthHint:'November',eventDate:null,location:'Purwokerto',organizer:null,distanceOrCategory:null,registrationUrl:null,registrationDeadline:null,sourceUrl:null,status:'candidate',dateStatus:'unverified',participationIntent:'interested',notes:'Tanggal 2026 belum terverifikasi.'})});await loadData();render();toast('Skybridge Race Run disimpan dengan tanggal belum terverifikasi')}catch(e){toast(e.message,true)}};document.querySelectorAll('[data-add-evidence]').forEach(button=>button.onclick=()=>evidenceModal(button.dataset.addEvidence))}
-function renderProfile(){const p=state.profile,i=state.home.integration;app.innerHTML=shell(`${header('Profil','Konteks larimu','Hanya informasi yang berguna untuk personalisasi.',false)}<div class="profile-grid"><section class="panel"><form id="profile-form">${field('displayName','Nama panggilan',p.displayName,'text',true)}${field('runningArea','Area lari',p.runningArea||'')}${field('preferredDays','Hari favorit',p.preferredDays.join(', '))}${field('preferredTime','Waktu favorit',p.preferredTime||'')}${field('preferredDistances','Jarak favorit',p.preferredDistances.join(', '))}${field('primaryGoal','Tujuan utama',p.primaryGoal||'')}${field('preferredEventTypes','Jenis event favorit',p.preferredEventTypes.join(', '))}${field('communities','Komunitas yang dikonfirmasi',p.communities.join(', '))}<div class="field"><label for="m-runningWithOthersPreference">Preferensi teman lari</label><select id="m-runningWithOthersPreference" name="runningWithOthersPreference"><option value="" ${selected(p.runningWithOthersPreference,'')}>Belum tahu</option><option value="lebih_suka_bareng" ${selected(p.runningWithOthersPreference,'lebih_suka_bareng')}>Lebih suka lari bareng</option><option value="fleksibel" ${selected(p.runningWithOthersPreference,'fleksibel')}>Fleksibel</option><option value="lebih_suka_sendiri" ${selected(p.runningWithOthersPreference,'lebih_suka_sendiri')}>Lebih suka sendiri</option></select></div><button class="button" type="submit">Simpan profil</button></form></section><aside class="panel integration-card"><div class="eyebrow">Integrasi opsional</div><h3>Strava</h3><p class="subtle">Status: ${human(i.status)}. Token tidak pernah dikirim ke browser.</p><button class="button ghost" id="strava-action" disabled aria-disabled="true">Strava belum tersedia</button><p id="strava-status" class="truth-note">Integrasi Strava sedang ditunda. Runner OS tetap berfungsi penuh tanpa Strava.</p></aside></div>`,'profile');document.querySelector('#profile-form').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget).entries());await api('/api/profile',{method:'PUT',body:JSON.stringify({displayName:d.displayName,runningArea:d.runningArea||null,preferredDays:splitList(d.preferredDays),preferredTime:d.preferredTime||null,preferredDistances:splitList(d.preferredDistances),primaryGoal:d.primaryGoal||null,preferredEventTypes:splitList(d.preferredEventTypes),runningWithOthersPreference:d.runningWithOthersPreference||null,communities:splitList(d.communities),notes:p.notes,onboardingCompletedAt:p.onboardingCompletedAt})});await loadData();render();toast('Profil disimpan')};document.querySelector('#strava-action').onclick=async()=>{const out=document.querySelector('#strava-status');try{if(i.status==='connected')await api('/api/integrations/strava/disconnect',{method:'POST'});else await api('/api/integrations/strava/connect',{method:'POST'});await loadData();render()}catch(error){out.textContent=error.message}}}
+function renderProfile(){const p=state.profile,i=state.home.integration;app.innerHTML=shell(`${header('Profil','Konteks larimu','Hanya informasi yang berguna untuk personalisasi.',false)}<div class="profile-grid"><section class="panel"><form id="profile-form">${field('displayName','Nama panggilan',p.displayName,'text',true)}${field('runningArea','Area lari',p.runningArea||'')}${field('preferredDays','Hari favorit',p.preferredDays.join(', '))}${field('preferredTime','Waktu favorit',p.preferredTime||'')}${field('preferredDistances','Jarak favorit',p.preferredDistances.join(', '))}${field('primaryGoal','Tujuan utama',p.primaryGoal||'')}${field('preferredEventTypes','Jenis event favorit',p.preferredEventTypes.join(', '))}${field('communities','Komunitas yang dikonfirmasi',p.communities.join(', '))}<div class="field"><label for="m-runningWithOthersPreference">Preferensi teman lari</label><select id="m-runningWithOthersPreference" name="runningWithOthersPreference"><option value="" ${selected(p.runningWithOthersPreference,'')}>Belum tahu</option><option value="lebih_suka_bareng" ${selected(p.runningWithOthersPreference,'lebih_suka_bareng')}>Lebih suka lari bareng</option><option value="fleksibel" ${selected(p.runningWithOthersPreference,'fleksibel')}>Fleksibel</option><option value="lebih_suka_sendiri" ${selected(p.runningWithOthersPreference,'lebih_suka_sendiri')}>Lebih suka sendiri</option></select></div><button class="button" type="submit">Simpan profil</button></form></section><aside class="panel integration-card" id="account-security"><div class="eyebrow">Keamanan akun</div><h3>Login Google</h3><p class="subtle" id="google-link-status">Memeriksa status…</p><button class="button ghost" id="google-link" hidden>Hubungkan akun Google</button></aside><aside class="panel integration-card"><div class="eyebrow">Integrasi opsional</div><h3>Strava</h3><p class="subtle">Status: ${human(i.status)}. Token tidak pernah dikirim ke browser.</p><button class="button ghost" id="strava-action" disabled aria-disabled="true">Strava belum tersedia</button><p id="strava-status" class="truth-note">Integrasi Strava sedang ditunda. Runner OS tetap berfungsi penuh tanpa Strava.</p></aside></div>`,'profile');document.querySelector('#profile-form').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget).entries());await api('/api/profile',{method:'PUT',body:JSON.stringify({displayName:d.displayName,runningArea:d.runningArea||null,preferredDays:splitList(d.preferredDays),preferredTime:d.preferredTime||null,preferredDistances:splitList(d.preferredDistances),primaryGoal:d.primaryGoal||null,preferredEventTypes:splitList(d.preferredEventTypes),runningWithOthersPreference:d.runningWithOthersPreference||null,communities:splitList(d.communities),notes:p.notes,onboardingCompletedAt:p.onboardingCompletedAt})});await loadData();render();toast('Profil disimpan')};bindGoogleLink();document.querySelector('#strava-action').onclick=async()=>{const out=document.querySelector('#strava-status');try{if(i.status==='connected')await api('/api/integrations/strava/disconnect',{method:'POST'});else await api('/api/integrations/strava/connect',{method:'POST'});await loadData();render()}catch(error){out.textContent=error.message}}}
 function renderAI(){app.innerHTML=shell(`${header('Tanya AI','Tanya tentang larimu','Konteks dipilih seperlunya. Tanya AI memberi saran untuk ditinjau dan tidak mengubah data.',false)}<section class="panel ai-console"><form id="ai-form">${field('question','Pertanyaan','','text',true)}<button class="button" type="submit">Tanya</button></form><div id="ai-answer" class="ai-answer subtle">Contoh: “Aku biasanya lari hari apa?”</div></section>`,'ai');document.querySelector('#ai-form').onsubmit=async e=>{e.preventDefault();const q=new FormData(e.currentTarget).get('question');const out=document.querySelector('#ai-answer');out.textContent='Menyiapkan konteks yang relevan…';try{const r=await api('/api/ai/ask',{method:'POST',body:JSON.stringify({question:q})});const suggestion=r.suggestion?`<section class="ai-suggestion"><strong>${escapeHtml(r.suggestion.title)}</strong><ul>${r.suggestion.items.map(item=>`<li>${escapeHtml(item)}</li>`).join('')}</ul><small>Saran saja — tinjau dan konfirmasi secara eksplisit sebelum melakukan perubahan.</small></section>`:'';out.innerHTML=`<p>${escapeHtml(r.answer)}</p>${suggestion}`}catch(err){out.innerHTML=`<div class="error-banner">${escapeHtml(err.message)}</div>`}}}
 
 function recurringModal(item=null){
@@ -234,6 +276,7 @@ function bindShell() {
   if (logout) logout.onclick = async () => {
     try {
       await api('/api/auth/logout', { method:'POST' })
+      await clerkSignOut()
       state.user = null
       state.runs = []
       state.today = null
@@ -359,6 +402,27 @@ async function runAction(action) {
     render()
     toast(`Run ${action === 'complete' ? 'completed' : action === 'pause' ? 'paused' : action === 'archive' ? 'archived' : action === 'resume' ? 'resumed' : 'started'}`)
   } catch (error) { toast(error.message, true) }
+}
+
+async function bindGoogleLink() {
+  const status = document.querySelector('#google-link-status')
+  const button = document.querySelector('#google-link')
+  if (!status || !button) return
+  try {
+    const { google } = await api('/api/auth/identities')
+    if (google.linked) { status.textContent = `Terhubung sejak ${date(google.linkedAt)}. Kamu bisa masuk dengan Google.`; return }
+    if (!google.available) { status.textContent = 'Login Google belum tersedia. Akunmu tetap memakai email dan kata sandi.'; return }
+    status.textContent = 'Belum terhubung. Hubungkan agar bisa masuk dengan Google tanpa kehilangan data.'
+    button.hidden = false
+    button.onclick = async () => {
+      button.disabled = true
+      button.textContent = 'Menghubungkan…'
+      try {
+        const result = await startGoogle('link')
+        if (result?.status === 'ok') { toast('Akun Google berhasil dihubungkan'); bindGoogleLink() }
+      } catch (error) { button.disabled = false; button.textContent = 'Hubungkan akun Google'; toast(error.message, true) }
+    }
+  } catch (error) { status.textContent = error.message }
 }
 
 function toast(message, isError = false) {

@@ -15,6 +15,25 @@ export interface User {
   createdAt: string
 }
 
+export interface ExternalIdentity {
+  id: string
+  ownerId: string
+  provider: 'clerk'
+  subject: string
+  emailAtLink: string | null
+  createdAt: string
+  lastSeenAt: string
+}
+
+export interface AuthEvent {
+  id: string
+  ownerId: string | null
+  eventType: 'identity.created' | 'identity.linked' | 'identity.signin' | 'identity.link_required' | 'identity.conflict'
+  provider: 'clerk' | null
+  metadata: Record<string, unknown>
+  createdAt: string
+}
+
 export interface Session {
   id: string
   ownerId: string
