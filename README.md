@@ -179,6 +179,17 @@ curl http://localhost:3000/health
 - **Last updated:** 2026-09-17
 
 
+## Latest audit and remediation (2026-11-13)
+
+The repository audit and current implementation instructions are recorded in:
+
+- [30 — Full Repository Audit & Remediation Record](docs/30_FULL_REPOSITORY_AUDIT_AND_REMEDIATION_RECORD.md)
+- [31 — Master System Prompt & Genspark Execution Prompt](docs/31_RUNNER_OS_MASTER_SYSTEM_PROMPT_AND_GENSPARK_EXECUTION_PROMPT.md)
+
+The audit identified and fixed a critical policy boundary: Strava-sourced activities are excluded from AI context at data-selection time, with regression coverage. The Strava status API and profile UI now report the integration as deferred/unavailable; no OAuth or sync is claimed. These changes are on the remediation branch and are not yet merged or deployed.
+
+The audit also records outstanding P0 release gates: rerun the test/typecheck/build/security suite on the branch, add server-side abuse controls, complete account export/deletion and privacy/terms, and verify live Groq and Cloudflare production behavior. The audit was based on repository source retrieval; it is not a production penetration test or live deployment verification.
+
 ## Phase 6 — Agentic Runner OS (architecture defined; implementation pending)
 
 The next evolution is documented in:
