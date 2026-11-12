@@ -33,7 +33,7 @@ beforeEach(() => { store = new MemoryRunStore() })
 
 describe('Phase 5 authenticated AI application service', () => {
   it('rejects unauthenticated and invalid requests with stable errors', async () => {
-    const app = createApp(() => store, () => ({ name: 'mock', answer: async () => ({ answer: 'ok', suggestion: null }) }))
+    const app = createApp(() => store, () => ({ name: 'mock', answer: async () => ({ answer: 'ok', suggestion: null }) }), undefined, { allowLegacyPasswordAuth: true })
     const unauthenticated = await request(app, '/api/ai/ask', undefined, { question: 'Apa jadwalku?' })
     expect(unauthenticated.status).toBe(401)
     expect(unauthenticated.body.error.code).toBe('AUTH_REQUIRED')
@@ -44,7 +44,7 @@ describe('Phase 5 authenticated AI application service', () => {
   })
 
   it('reports an honest unavailable state without GROQ_API_KEY', async () => {
-    const app = createApp(() => store)
+    const app = createApp(() => store, undefined, undefined, { allowLegacyPasswordAuth: true })
     const cookie = await register(app, 'unavailable-ai@example.com')
     const result = await request(app, '/api/ai/ask', cookie, { question: 'Besok aku lari apa?' })
     expect(result.status).toBe(503)
@@ -61,7 +61,7 @@ describe('Phase 5 authenticated AI application service', () => {
         return { answer: 'Tinjau latihan ringan besok.', suggestion: { type: 'training', title: 'Draft latihan', items: ['Lari mudah 20 menit'], requiresConfirmation: true } }
       },
     }
-    const app = createApp(() => store, () => provider)
+    const app = createApp(() => store, () => provider, undefined, { allowLegacyPasswordAuth: true })
     const cookie = await register(app, 'mock-ai@example.com')
     const ownerId = [...store.users.values()][0].id
     const before = { runs: store.runs.size, activities: store.activities.size, events: store.runningEvents.size }
