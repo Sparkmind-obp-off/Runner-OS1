@@ -76,7 +76,7 @@ describe('Phase 5 authenticated AI application service', () => {
   })
 
   it('selects only owner-scoped, purpose-relevant context', async () => {
-    const app = createApp(() => store)
+    const app = createApp(() => store, undefined, undefined, { allowLegacyPasswordAuth: true })
     const ownerA = await register(app, 'owner-a-ai@example.com')
     await register(app, 'owner-b-ai@example.com')
     const users = [...store.users.values()]
