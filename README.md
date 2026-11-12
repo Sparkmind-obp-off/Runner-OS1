@@ -220,6 +220,18 @@ The complete product blueprint now defines the North Star, PRD, MVP/MVW, UX/UI, 
 
 **Important:** These are product and implementation specifications. They do not mean the described features are already implemented or production-enabled. The existing source baseline remains the authority. In particular, Strava OAuth/live sync, agentic orchestration, approval inbox, personal memory and additional Cloudflare services remain gated until implemented and verified. The current frontend baseline is static HTML/CSS/JavaScript, not React/Vite; the frontend contract explicitly preserves this unless a measured migration is approved.
 
+## Product evolution — Agentic Running OS as a Service (Doc 37)
+
+The target product model and boundaries for multi-user SaaS, agentic services, usage controls, Clerk Google sign-in, and separate Strava OAuth are defined in:
+
+- [37 — Agentic Running OS as a Service (SaaS) Blueprint](docs/37_AGENTIC_RUNNING_OS_AS_A_SERVICE_SAAS_BLUEPRINT.md)
+
+**Identity boundary:** Clerk is designated for Google sign-in only. Strava OAuth is a separate provider flow and must not be routed through Clerk. Existing email/password authentication must be migrated safely before deprecation.
+
+**Product boundary:** Runner OS remains useful without Strava. Agentic capabilities are bounded, budgeted and approval-gated. The SaaS pricing/tier model is a hypothesis, not published pricing.
+
+**Strava boundary:** Live multi-user OAuth remains blocked until written Strava policy clearance for this exact AI-assisted running SaaS use case. Credentials or athlete consent alone do not clear the gate. Strava API data must remain excluded from Runner OS AI/agent processing under the current policy decision.
+
 ## User access, onboarding & operations (Docs 32–36)
 
 Dokumentasi untuk pengguna eksternal dan operator:
