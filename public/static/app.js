@@ -65,7 +65,7 @@ async function loadData() {
 function renderAuth(mode = 'welcome', message = '') {
   if (mode === 'welcome') {
     app.innerHTML = `<main class="welcome"><section><div class="brand-mark">RUNNER OS</div><div class="eyebrow welcome-eyebrow">PERSONAL RUNNING OS</div><h1>Bangun rutinitas lari yang terasa milikmu.</h1><p>Satukan catatan lari, jadwal, target, dan persiapan. Dapatkan arahan yang memahami konteksmu—tanpa harus bergantung pada Strava.</p><div class="welcome-points"><span>01 · Catat progresmu</span><span>02 · Susun rutinitas realistis</span><span>03 · Dapatkan bantuan AI yang terarah</span></div><div class="actions"><button id="start-setup" class="button">Mulai bangun rutinitas</button><button id="returning" class="button ghost">Saya sudah punya akun</button></div><p class="welcome-note">Data aktivitas tetap milik akunmu. Integrasi eksternal bersifat opsional.</p></section></main>`
-    document.querySelector('#start-setup').onclick=()=>renderAuth('register')
+    document.querySelector('#start-setup').onclick=()=>{onboardingStep=0;onboardingDraft={};renderAuth('register')}
     document.querySelector('#returning').onclick=()=>renderAuth('login')
     return
   }
