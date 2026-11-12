@@ -205,5 +205,6 @@ The complete product blueprint now defines the North Star, PRD, MVP/MVW, UX/UI, 
 | [26 — Cloudflare Architecture & ADRs](docs/26_CLOUDFLARE_PLATFORM_ARCHITECTURE_AND_ADR.md) | Platform choices, D1/Neon, Workflows/Queues, frameworks and cost gates |
 | [27 — Master Implementation Command Center](docs/27_MASTER_IMPLEMENTATION_COMMAND_CENTER.md) | Unified implementation instructions and definition of done |
 | [28 — Roadmap & Release Gates](docs/28_EXECUTION_ROADMAP_TESTING_RELEASE_GATES.md) | Phases, QA, security tests and release readiness |
+| [29 — Strava OAuth, MCP, Cost & 2026 Policy Decision](docs/29_STRAVA_OAUTH_MCP_COST_AND_2026_POLICY_DECISION.md) | OAuth vs official MCP, subscription/cost, athlete capacity, AI/intermediary restrictions and Runner OS product decision |
 
 **Important:** These are product and implementation specifications. They do not mean the described features are already implemented or production-enabled. The existing source baseline remains the authority. In particular, Strava OAuth/live sync, agentic orchestration, approval inbox, personal memory and additional Cloudflare services remain gated until implemented and verified. The current frontend baseline is static HTML/CSS/JavaScript, not React/Vite; the frontend contract explicitly preserves this unless a measured migration is approved.
