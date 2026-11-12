@@ -66,15 +66,27 @@ async function handleClerkCallback() {
   }
 }
 
-async function googleButton(mode) {
-  const config = await getAuthConfig()
+async function googleButton() {
   const slot = document.querySelector('#google-slot')
-  if (!slot || !config.enabled) return
-  // Only offer Google when the identity service is actually reachable; never show a dead button.
-  try { await loadClerk() } catch { return }
-  if (!document.body.contains(slot)) return
-  slot.innerHTML = `<button id="google-signin" class="button ghost full google-button" type="button"><span aria-hidden="true" class="google-mark">G</span> ${mode==='register'?'Daftar':'Masuk'} dengan Google</button><div class="auth-divider" role="separator"><span>atau gunakan email</span></div>`
-  const button = document.querySelector('#google-signin')
+  if (!slot) return
+  const config = await getAuthConfig()
+  const button = slot.querySelector('#google-signin')
+  const status = slot.querySelector('#google-status')
+  if (!button || !status) return
+  if (!config.enabled) {
+    button.disabled = true
+    status.textContent = 'Login Google belum tersedia. Konfigurasi Clerk Production perlu diperiksa oleh administrator.'
+    return
+  }
+  try {
+    await loadClerk()
+    button.disabled = false
+    status.textContent = 'Autentikasi aman oleh Clerk · Google'
+  } catch (error) {
+    button.disabled = true
+    status.textContent = error.message
+    return
+  }
   button.onclick = async () => {
     button.disabled = true
     button.setAttribute('aria-busy', 'true')
@@ -83,7 +95,7 @@ async function googleButton(mode) {
       const result = await startGoogle('signin')
       if (result?.status === 'ok') { history.replaceState({}, '', '/'); return boot() }
     } catch (error) {
-      renderAuth(mode, error.message)
+      renderAuth('welcome', error.message)
     }
   }
 }
@@ -103,39 +115,9 @@ async function loadData() {
   }
 }
 
-function renderAuth(mode = 'welcome', message = '') {
-  if (mode === 'welcome') {
-    app.innerHTML = `<main class="welcome"><section><div class="brand-mark">RUNNER OS</div><div class="eyebrow welcome-eyebrow">PERSONAL RUNNING OS</div><h1>Bangun rutinitas lari yang terasa milikmu.</h1><p>Satukan catatan lari, jadwal, target, dan persiapan. Dapatkan arahan yang memahami konteksmu—tanpa harus bergantung pada Strava.</p><div class="welcome-points"><span>01 · Catat progresmu</span><span>02 · Susun rutinitas realistis</span><span>03 · Dapatkan bantuan AI yang terarah</span></div><div class="actions"><button id="start-setup" class="button">Mulai bangun rutinitas</button><button id="returning" class="button ghost">Saya sudah punya akun</button></div><p class="welcome-note">Data aktivitas tetap milik akunmu. Integrasi eksternal bersifat opsional.</p></section></main>`
-    document.querySelector('#start-setup').onclick=()=>{onboardingStep=0;onboardingDraft={};renderAuth('register')}
-    document.querySelector('#returning').onclick=()=>renderAuth('login')
-    return
-  }
-  app.innerHTML = `<main class="auth-layout"><section class="brand-panel"><div class="brand-mark">Runner OS</div><div><h1>${mode==='login'?'Selamat datang kembali.':'Mulai dari konteksmu.'}</h1><p>Data larimu tetap pribadi dan terikat ke akunmu.</p></div><small>Rencana → Lari → Catat → Pulih</small></section><section class="auth-panel"><div class="auth-card"><div class="eyebrow">${mode==='login'?'Masuk':'Buat akun'}</div><h2>${mode==='login'?'Lanjutkan dari sini.':'Siapkan Runner OS.'}</h2>${message?`<div class="error-banner" role="alert">${escapeHtml(message)}</div>`:''}<div id="google-slot"></div><form id="auth-form">${mode==='register'?field('displayName','Nama panggilan','','text',true,'name'):''}${field('email','Email','','email',true,'email')}${field('password','Kata sandi','','password',true,mode==='register'?'new-password':'current-password',mode==='register'?12:1)}<button class="button full" type="submit">${mode==='login'?'Masuk':'Buat akun & mulai setup'}</button></form><p class="subtle"><button id="switch-auth" class="text-button">${mode==='login'?'Belum punya akun? Mulai Setup':'Sudah punya akun? Masuk'}</button></p></div></section></main>`
-  document.querySelector('#switch-auth').onclick = () => renderAuth(mode === 'login' ? 'register' : 'login')
-  googleButton(mode)
-  document.querySelector('#auth-form').onsubmit = async (event) => {
-    event.preventDefault()
-    const form = event.currentTarget
-    const submit = form.querySelector('button[type="submit"]')
-    const body = Object.fromEntries(new FormData(form).entries())
-    submit.disabled = true
-    submit.setAttribute('aria-busy', 'true')
-    submit.textContent = mode === 'login' ? 'Signing in…' : 'Creating account…'
-    try {
-      await api(`/api/auth/${mode}`, { method:'POST', body:JSON.stringify(body) })
-      state.user = await api('/api/auth/me')
-      if (!state.user) throw new Error('The server did not confirm the new session. Please try again.')
-      history.replaceState({}, '', '/')
-      state.view = 'home'
-      state.profile = await api('/api/profile')
-      if (!state.profile?.onboardingCompletedAt) return renderOnboarding()
-      await loadData()
-      render()
-    } catch (error) {
-      state.user = null
-      renderAuth(mode, error.message)
-    }
-  }
+function renderAuth(_mode = 'welcome', message = '') {
+  app.innerHTML = `<main class="auth-layout"><section class="brand-panel"><div class="brand-mark">Runner OS</div><div><div class="eyebrow">PERSONAL RUNNING OS</div><h1>Bangun rutinitas lari yang terasa milikmu.</h1><p>Satukan catatan lari, jadwal, target, dan persiapan. Data dan aktivitas tetap terikat pada akunmu.</p><div class="welcome-points"><span>01 · Catat progresmu</span><span>02 · Susun rutinitas realistis</span><span>03 · Dapatkan bantuan AI yang terarah</span></div></div><small>Rencana → Lari → Catat → Pulih</small></section><section class="auth-panel"><div class="auth-card"><div class="eyebrow">AUTENTIKASI RUNNER OS</div><h2>Lanjutkan dengan Google.</h2><p class="subtle">Masuk dan pendaftaran menggunakan Clerk Production. Runner OS tidak menyimpan atau meminta kata sandi Google.</p>${message?`<div class="error-banner" role="alert">${escapeHtml(message)}</div>`:''}<div id="google-slot"><button id="google-signin" class="button full google-button" type="button" disabled><span aria-hidden="true" class="google-mark">G</span> Lanjutkan dengan Google</button><p id="google-status" class="subtle" role="status">Memeriksa layanan autentikasi…</p></div><p class="welcome-note">Akun lama dan data yang sudah tersimpan tetap dipertahankan. Akun lama dapat menghubungkan Google dari sesi yang masih aktif.</p></div></section></main>`
+  googleButton()
 }
 
 function shell(content, active = state.view) {
@@ -411,7 +393,7 @@ async function bindGoogleLink() {
   try {
     const { google } = await api('/api/auth/identities')
     if (google.linked) { status.textContent = `Terhubung sejak ${date(google.linkedAt)}. Kamu bisa masuk dengan Google.`; return }
-    if (!google.available) { status.textContent = 'Login Google belum tersedia. Akunmu tetap memakai email dan kata sandi.'; return }
+    if (!google.available) { status.textContent = 'Login Google belum tersedia. Hubungi administrator untuk memeriksa Clerk Production.'; return }
     status.textContent = 'Belum terhubung. Hubungkan agar bisa masuk dengan Google tanpa kehilangan data.'
     button.hidden = false
     button.onclick = async () => {
