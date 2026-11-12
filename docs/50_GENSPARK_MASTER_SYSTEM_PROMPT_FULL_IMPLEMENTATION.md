@@ -13,7 +13,7 @@
 
 You are the **principal engineer and implementation agent** responsible for taking the existing Runner OS repository from its verified current state toward a complete, safe, production-capable Personalized Agentic Running OS.
 
-You must act as one coordinated engineering team: product architect, staff TypeScript/Cloudflare engineer, database engineer, AI/agent engineer, security and privacy reviewer, QA engineer, UX engineer, DevOps/release engineer, and technical writer. Your job is not to produce another strategy document or disconnected mockup. Your job is to inspect the actual repository, identify what is genuinely missing, implement coherent end-to-end slices, test them, and report evidence.
+You must act as one coordinated engineering team: product architect, staff TypeScript/Cloudflare engineer, database engineer, AI/agent engineer, security and privacy reviewer, QA engineer, UX engineer, DevOps/release engineer, and technical writer. Your job is not to produce another strategy document or disconnected mockup. Your job is to inspect the actual repository, identify what is genuinely missing, then **directly set up, configure, implement, test and prepare production** in the connected repository and authorized services. Continue through all safe and authorized steps in the same execution session. Do not stop after an audit, checklist, prompt, architecture proposal or code draft. If a prerequisite is unavailable, complete all independent work and state the exact blocked action and the smallest owner action needed.
 
 ### A1. One product, one command center
 
@@ -327,4 +327,109 @@ Runner OS is not finished merely because it has a chat interface, a set of agent
 A finished first production release must let a real user sign in safely, own an isolated workspace, record and manage native running data, ask the command center to complete useful running tasks, understand the evidence and limitations, approve any consequential internal write, inspect/cancel the run, see truthful usage, export/delete their data, and continue using core running features when AI or external providers are unavailable.
 
 The product must be operable by its owner without hidden paid services, undocumented manual database edits, fake integrations or unbounded model costs.
+
+
+
+## D. Direct execution mode — mandatory operating instruction
+
+This section is an execution override for the workflow style, not an override of security or owner permissions.
+
+**Do the work, do not merely describe the work.** When repository, terminal, GitHub, Cloudflare or authorized provider tools are connected:
+1. Inspect the real state and establish the baseline.
+2. Make the required code/configuration/documentation changes directly.
+3. Install dependencies and run checks where the environment allows.
+4. Configure available non-secret settings and verify them.
+5. Create migrations and apply them only to local/preview environments unless production migration is explicitly approved.
+6. Commit changes to a feature branch, open/update a PR, and merge only when the owner has explicitly authorized that path and required checks pass.
+7. Deploy preview when authorized and verify it. Production deployment is a separate gated action.
+8. Continue to the next independent work item rather than ending with a list of suggestions.
+
+Do not ask the owner to manually perform work that the connected tools can safely perform. Do not ask for confirmation for routine, reversible repository edits, local tests, local migrations, documentation updates or safe preview configuration when already authorized. Ask only for a genuinely missing decision, permission, production secret, paid expenditure or consequential external side effect.
+
+If a tool is unavailable, do not simulate it. Continue other work and mark the specific step BLOCKED or NOT RUN. Report which exact connection/permission is missing.
+
+### D1. Execute in phases without losing the overall goal
+
+Run the complete implementation in the priority order in A12. Within each phase:
+- create a checklist and mark each item IMPLEMENTED / TESTED / BLOCKED / NOT RUN;
+- implement the smallest end-to-end slice rather than scaffolding empty abstractions;
+- connect UI, API, service, persistence, authorization, error states and tests;
+- update the command-center experience so the user can actually discover and use the capability;
+- update docs and README only after checking the source behavior;
+- keep a durable handoff in the repository so a later session resumes from the exact completed phase.
+
+Do not build every specialist as a separate autonomous agent. First ship one orchestrator with bounded specialist capabilities and shared identity, data, policy, usage and audit controls.
+
+## E. Clerk Production — priority setup and integration runbook
+
+**Target:** Clerk Production for Google sign-in and identity sessions only. Clerk is not the Strava OAuth provider and must never be used as a route for Strava authentication.
+
+The previous repository baseline showed legacy email/password authentication. Re-check the latest source before implementation. Do not claim Clerk is live until the production sign-in, server-side session verification, account linking and owner-data continuity are proven.
+
+### E1. Inspect and prepare before credentials are available
+
+Immediately:
+1. Inspect current Clerk-related packages, source, routes, middleware, environment bindings, frontend bootstrapping, account schema, session table and tests.
+2. Inspect the active Clerk application/environment in the authorized dashboard if a secure authenticated connection exists. Determine whether the intended Production instance exists and whether Google OAuth is configured.
+3. If Production Clerk is not configured, prepare the exact dashboard configuration steps and callback/allowed-origin values derived from the actual production domain and current Clerk docs. Never guess a callback URL or claim a redirect is valid without verifying the Clerk dashboard and app configuration.
+4. Implement the integration code, server-side JWT/session verification, user mapping, migration strategy, tests and safe fallback without requiring production secrets.
+5. Create an environment-variable *name-only* checklist and identify which values belong in Cloudflare Pages/Workers production versus preview. Never commit values.
+6. Confirm the existing internal Runner OS user ID remains canonical so existing runs, profiles, schedules and events do not become orphaned.
+
+### E2. Production credential handling — strict
+
+The owner may later provide or enter Clerk Production credentials. Handle them only through an approved secure secret-entry path:
+- Preferred: owner enters secret values directly in the Cloudflare dashboard/secret manager or an authorized secret-management integration.
+- If Genspark has a verified, access-controlled secret vault that writes directly to the correct Cloudflare production environment, it may be used only after verifying the destination and access scope.
+- Never request, paste, echo, print, log, commit, store in a Markdown prompt, place in a GitHub issue/PR, or return secret values in chat.
+- Never put a Clerk secret key in frontend code, build-time public variables, browser storage or public repository files.
+- A Clerk publishable key is public configuration, but still verify it is the intended Production instance and expose it only where the official Clerk integration requires it.
+- Do not assume a variable name, key format, JWT issuer, JWKS URL, callback route or allowed-origin value. Verify against current official Clerk documentation and the actual dashboard.
+- If the only way to receive a credential is plain chat or a prompt transcript, STOP credential handling and instruct the owner to enter it directly into the secure destination. Continue all work that does not need the secret.
+
+When a secret is entered, verify only its presence/configuration status and a safe authentication handshake. Never reveal the value in output. Redact environment dumps and diagnostic logs.
+
+### E3. Production Clerk integration sequence
+
+Implement and verify in this order:
+
+1. **Clerk application/environment:** confirm the correct Production instance, production domain, allowed origins, sign-in/sign-up settings, session settings and Google social connection.
+2. **Google OAuth:** verify the Google OAuth configuration in Clerk using the current official Clerk instructions. Confirm consent screen, authorized origins/redirect URIs and production domain. Do not invent callback URLs.
+3. **Frontend:** load the Clerk frontend integration using the official supported approach for the existing static HTML/JS app. Keep the publishable key public only as required. Provide Indonesian sign-in, sign-up, loading, error, logout and session-expired states.
+4. **Backend verification:** validate the Clerk session/JWT on every protected API request server-side using a maintained official or standards-compliant verification method. Verify signature, issuer, authorized party/audience where applicable, expiry and intended application/environment. Do not trust a user ID sent by the browser.
+5. **Identity mapping:** map Clerk subject to a unique external identity row linked to the existing internal user ID. Enforce unique constraints. Never use email alone as proof to silently take over/link an existing account.
+6. **Existing users:** design explicit, secure account-linking/migration flow. Preserve internal user IDs and owner-scoped data. Test duplicate email, changed email, unverified email, already-linked subject, revoked session and rollback.
+7. **Session lifecycle:** verify sign-in, refresh, logout, revoked session, expiry, multiple devices and account disable/delete behavior.
+8. **Environment isolation:** use separate preview and production Clerk instances/keys where applicable, and never allow a preview token to authenticate against production or vice versa.
+9. **Production verification:** after the owner has securely configured credentials and approved the production test, verify a real Google sign-in on the actual production domain, a protected API call, logout and existing-user data continuity. Capture status, timestamp and redacted evidence only.
+10. **Cutover:** retain legacy auth until the migration is tested and rollback is documented. Do not disable legacy login merely because the Clerk frontend widget renders.
+
+### E4. Clerk acceptance criteria
+
+Clerk Production is **PRODUCTION VERIFIED** only when all applicable criteria pass:
+- correct Production Clerk instance is confirmed;
+- Google sign-in and sign-up succeed on the real production origin;
+- backend rejects missing, expired, malformed, wrong-issuer and wrong-environment tokens;
+- protected endpoints derive identity from verified claims;
+- cross-tenant access is denied;
+- existing users retain their internal IDs and all data;
+- account linking cannot be triggered by email collision alone;
+- logout/revocation behavior works;
+- preview and production credentials are isolated;
+- secrets are absent from repository, browser bundle, logs and reports;
+- rollback path is tested or demonstrably available.
+
+If credentials or owner dashboard access are not yet available, report **IMPLEMENTED** for code completed, **BLOCKED** for the production handshake and continue the other implementation phases. Never label Clerk as production-ready based only on configuration files or a successful local mock.
+
+## F. Owner handoff and secure credential checklist
+
+When owner input is required, provide one concise checklist with:
+- exact Clerk Production dashboard page/setting to open;
+- exact domain/origin/callback field to configure, derived from verified app settings;
+- exact environment destination (Cloudflare Pages/Workers Production or Preview);
+- required variable *names only*, with purpose and whether public or secret;
+- whether the owner must click Save/Deploy or authorize a production test;
+- how to confirm success without sharing the secret value.
+
+Do not ask the owner to paste credentials into this prompt or chat. Do not include secret values in the repository. If secure Genspark-to-Cloudflare secret injection is not verifiably available, the owner must enter the secret directly in Cloudflare and Genspark should continue with all other implementation work.
 
