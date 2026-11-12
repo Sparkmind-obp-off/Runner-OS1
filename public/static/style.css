@@ -141,6 +141,16 @@ h3 { margin: 0; letter-spacing: -.02em; }
 .toast { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 30; max-width: min(24rem, calc(100vw - 2.5rem)); padding: .85rem 1rem; border-radius: 10px; color: white; background: var(--green-dark); box-shadow: var(--shadow); }
 .toast-error { background: var(--red); }
 
+.welcome-eyebrow { margin-top: 2rem; color: #b9dcc9; }
+.welcome-points { margin: 1.5rem 0 1.8rem; display: flex; flex-wrap: wrap; gap: .65rem; }
+.welcome-points span { padding: .55rem .8rem; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #e3f1e9; background: rgba(255,255,255,.07); font-size: .82rem; font-weight: 700; }
+.welcome-note { margin-top: 1.5rem; color: #c0d8cb !important; font-size: .85rem !important; }
+.onboarding-progress { height: .4rem; margin-bottom: 1.4rem; overflow: hidden; border-radius: 999px; background: var(--line); }
+.onboarding-progress span { display: block; height: 100%; border-radius: inherit; background: var(--green); transition: width .2s ease; }
+.onboarding-card .eyebrow { margin-top: .25rem; }
+.hero-card .button.ghost { color: white; border-color: rgba(255,255,255,.55); }
+.hero-card .button.ghost:hover { background: rgba(255,255,255,.12); }
+
 .welcome { min-height: 100vh; padding: clamp(2rem,8vw,8rem); display:grid; align-items:center; color:white; background:linear-gradient(135deg,#102e24,#1f6b4f); }
 .welcome section { max-width:58rem; }
 .welcome h1 { margin:1.2rem 0; max-width:13ch; font-size:clamp(3.2rem,8vw,7rem); line-height:.93; letter-spacing:-.065em; }

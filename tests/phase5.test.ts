@@ -86,6 +86,7 @@ describe('Phase 5 authenticated AI application service', () => {
     store.profiles.set(b.id, { id: 'pb', ownerId: b.id, displayName: 'Owner B Rahasia', runningArea: 'Jakarta', preferredDays: ['Minggu'], preferredTime: 'malam', preferredDistances: ['42K'], primaryGoal: 'Rahasia', preferredEventTypes: [], runningWithOthersPreference: null, communities: [], notes: 'catatan B rahasia', onboardingCompletedAt: null, createdAt: '', updatedAt: '' })
     store.recurring.set('ra', { id: 'ra', ownerId: a.id, name: 'MJW', activityType: 'community_run', recurrenceRule: 'FREQ=WEEKLY;BYDAY=FR', usualDay: 'Jumat', usualTime: 'malam', usualLocation: null, community: null, expectedDistanceMeters: null, notes: null, source: 'user_confirmed', relevanceWeight: .8, active: true, createdAt: '', updatedAt: '' })
     store.activities.set('irrelevant-history', { id: 'irrelevant-history', ownerId: a.id, startedAt: '2026-09-01T00:00:00Z', endedAt: null, durationSeconds: null, distanceMeters: null, paceSecondsPerKm: null, elevationMeters: null, effort: null, feeling: null, source: 'manual', externalId: null, eventId: null, recurringActivityId: null, notes: 'Tidak relevan untuk pertanyaan jadwal', createdAt: '', updatedAt: '' })
+    store.activities.set('strava-import', { id: 'strava-import', ownerId: a.id, startedAt: '2026-09-02T00:00:00Z', endedAt: null, durationSeconds: 1800, distanceMeters: 5000, paceSecondsPerKm: 360, elevationMeters: null, effort: null, feeling: null, source: 'strava', externalId: 'strava-123', eventId: null, recurringActivityId: null, notes: 'Strava-only record', createdAt: '', updatedAt: '' })
 
     const context = await selectAIContext(store, a.id, 'Besok ada jadwal MJW?')
     const serialized = JSON.stringify(context)
@@ -95,6 +96,10 @@ describe('Phase 5 authenticated AI application service', () => {
     expect(serialized).not.toContain('irrelevant-history')
     expect(context.items.some((item) => item.kind === 'running_activity')).toBe(false)
     expect(context.items.every((item) => !('ownerId' in item.data))).toBe(true)
+    const historyContext = await selectAIContext(store, a.id, 'Ringkas riwayat aktivitas terakhirku')
+    expect(JSON.stringify(historyContext)).not.toContain('strava-import')
+    expect(JSON.stringify(historyContext)).not.toContain('Strava-only record')
+    expect(historyContext.items.some((item) => item.kind === 'running_activity' && item.data.source === 'strava')).toBe(false)
     expect(ownerA).toContain('runner_session=')
   })
 

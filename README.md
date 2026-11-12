@@ -179,6 +179,17 @@ curl http://localhost:3000/health
 - **Last updated:** 2026-09-17
 
 
+## Latest audit and remediation (2026-11-13)
+
+The repository audit and current implementation instructions are recorded in:
+
+- [30 — Full Repository Audit & Remediation Record](docs/30_FULL_REPOSITORY_AUDIT_AND_REMEDIATION_RECORD.md)
+- [31 — Master System Prompt & Genspark Execution Prompt](docs/31_RUNNER_OS_MASTER_SYSTEM_PROMPT_AND_GENSPARK_EXECUTION_PROMPT.md)
+
+The audit identified and fixed a critical policy boundary: Strava-sourced activities are excluded from AI context at data-selection time, with regression coverage. The Strava status API and profile UI now report the integration as deferred/unavailable; no OAuth or sync is claimed. These changes are on the remediation branch and are not yet merged or deployed.
+
+The audit also records outstanding P0 release gates: rerun the test/typecheck/build/security suite on the branch, add server-side abuse controls, complete account export/deletion and privacy/terms, and verify live Groq and Cloudflare production behavior. The audit was based on repository source retrieval; it is not a production penetration test or live deployment verification.
+
 ## Phase 6 — Agentic Runner OS (architecture defined; implementation pending)
 
 The next evolution is documented in:
@@ -208,3 +219,33 @@ The complete product blueprint now defines the North Star, PRD, MVP/MVW, UX/UI, 
 | [29 — Strava OAuth, MCP, Cost & 2026 Policy Decision](docs/29_STRAVA_OAUTH_MCP_COST_AND_2026_POLICY_DECISION.md) | OAuth vs official MCP, subscription/cost, athlete capacity, AI/intermediary restrictions and Runner OS product decision |
 
 **Important:** These are product and implementation specifications. They do not mean the described features are already implemented or production-enabled. The existing source baseline remains the authority. In particular, Strava OAuth/live sync, agentic orchestration, approval inbox, personal memory and additional Cloudflare services remain gated until implemented and verified. The current frontend baseline is static HTML/CSS/JavaScript, not React/Vite; the frontend contract explicitly preserves this unless a measured migration is approved.
+
+## Product evolution — Agentic Running OS as a Service (Doc 37)
+
+The target product model and boundaries for multi-user SaaS, agentic services, usage controls, Clerk Google sign-in, and separate Strava OAuth are defined in:
+
+- [37 — Agentic Running OS as a Service (SaaS) Blueprint](docs/37_AGENTIC_RUNNING_OS_AS_A_SERVICE_SAAS_BLUEPRINT.md)
+
+**Identity boundary:** Clerk is designated for Google sign-in only. Strava OAuth is a separate provider flow and must not be routed through Clerk. Existing email/password authentication must be migrated safely before deprecation.
+
+**Product boundary:** Runner OS remains useful without Strava. Agentic capabilities are bounded, budgeted and approval-gated. The SaaS pricing/tier model is a hypothesis, not published pricing.
+
+**Strava boundary:** Live multi-user OAuth remains blocked until written Strava policy clearance for this exact AI-assisted running SaaS use case. Credentials or athlete consent alone do not clear the gate. Strava API data must remain excluded from Runner OS AI/agent processing under the current policy decision.
+
+## Customer journey & UX improvements (Doc 38)
+
+The first UX audit and improvement pass is documented in [38 — Customer Journey, UX Audit & Improvement Plan](docs/38_CUSTOMER_JOURNEY_UX_AUDIT_AND_IMPROVEMENT_PLAN.md). The audit branch improves the welcome proposition, progressive onboarding, progress feedback, first cockpit actions and Indonesian navigation labels. Remaining work includes Clerk migration, task-oriented agent UX, account lifecycle, complete localization and real-device accessibility QA.
+
+## User access, onboarding & operations (Docs 32–36)
+
+Dokumentasi untuk pengguna eksternal dan operator:
+
+| Document | Purpose |
+|---|---|
+| [32 — Panduan Pengguna Runner OS](docs/32_PANDUAN_PENGGUNA_RUNNER_OS.md) | Cara membuat akun, setup, mencatat aktivitas, jadwal, event, dan AI |
+| [33 — Panduan Akses Pengguna & Public Beta](docs/33_PANDUAN_AKSES_PENGGUNA_DAN_PUBLIC_BETA.md) | Model multi-user, closed beta, public beta, dan release gates |
+| [34 — Privacy Notice Draft (ID)](docs/34_PRIVACY_NOTICE_DRAFT_ID.md) | Draft pemberitahuan privasi dengan kategori data dan checklist publikasi |
+| [35 — Terms of Service Draft (ID)](docs/35_TERMS_OF_SERVICE_DRAFT_ID.md) | Draft syarat penggunaan dan batasan AI/integrasi |
+| [36 — Operations, Support & Incident Runbook](docs/36_OPERATIONS_SUPPORT_AND_INCIDENT_RUNBOOK.md) | Dukungan, insiden keamanan, backup/restore, dan secret handling |
+
+**Public access warning:** docs 34 and 35 are explicitly DRAFT and must not be published as final legal terms. Docs 32–36 do not implement missing account export/deletion, rate limits, or production controls. Public launch remains blocked until the P0 checklist in docs 30 and 33 is verified.

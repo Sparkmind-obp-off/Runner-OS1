@@ -143,7 +143,7 @@ export function createApp(
   app.get('/api/events/:id/evidence', async (c) => c.json({ data: await phase4(c).listEvidence(c.get('user').id, c.req.param('id')) }))
   app.post('/api/events/:id/evidence', async (c) => c.json({ data: await phase4(c).addEvidence(c.get('user').id, c.req.param('id'), await parseBody(c, evidenceSchema) as any) }, 201))
 
-  app.get('/api/integrations/strava', async (c) => c.json({ data: { ...(await phase4(c).getIntegration(c.get('user').id)), available:Boolean(c.env?.STRAVA_CLIENT_ID && c.env?.STRAVA_CLIENT_SECRET) } }))
+  app.get('/api/integrations/strava', async (c) => { const integration = await phase4(c).getIntegration(c.get('user').id); return c.json({ data: { ...integration, status: 'disconnected', providerUserId: null, scopes: [], connectedAt: null, lastSyncedAt: null, lastErrorCode: 'INTEGRATION_DEFERRED', available: false, capabilities: { oauth: false, sync: false, displayOnly: false, aiAccess: false } } }) })
   app.post('/api/integrations/strava/connect', async (c) => {
     if (!c.env?.STRAVA_CLIENT_ID || !c.env?.STRAVA_CLIENT_SECRET) throw new AppError('PROVIDER_UNAVAILABLE','Koneksi Strava belum tersedia karena kredensial produksi belum dikonfigurasi.',503)
     throw new AppError('PROVIDER_UNAVAILABLE','Alur OAuth Strava belum diaktifkan. Data lokal tetap aman.',503)
