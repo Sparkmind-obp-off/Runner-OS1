@@ -69,7 +69,7 @@ beforeEach(() => {
     ['user_legacy', { id: 'user_legacy', primaryEmail: 'legacy@example.com', primaryEmailVerified: true, displayName: 'Legacy' }],
     ['user_unverified', { id: 'user_unverified', primaryEmail: 'u@example.com', primaryEmailVerified: false, displayName: 'U' }],
   ])
-  app = createApp(() => store, () => null, clerkFactory)
+  app = createApp(() => store, () => null, clerkFactory, { allowLegacyPasswordAuth: true })
 })
 
 describe('Clerk publishable key', () => {
@@ -81,6 +81,16 @@ describe('Clerk publishable key', () => {
 })
 
 describe('Clerk sign-in (server-side verification)', () => {
+  it('keeps password endpoints retired even when Clerk is unavailable', async () => {
+    const clerkOnly = createApp(() => store, () => null, () => null)
+    for (const path of ['/api/auth/register', '/api/auth/login']) {
+      const response = await clerkOnly.request(`${ORIGIN}${path}`, { method: 'POST', body: JSON.stringify({ email: 'legacy@example.com', displayName: 'Legacy', password: 'correct-horse-battery-staple' }) })
+      expect(response.status).toBe(410)
+      expect((await response.json() as any).error.code).toBe('PASSWORD_AUTH_DISABLED')
+    }
+    expect(store.users.size).toBe(0)
+  })
+
   it('creates a new internal user + identity from a verified token and issues an HttpOnly session', async () => {
     const result = await clerkSignIn(await sign(claims('user_alice')))
     expect(result.response.status).toBe(201)
