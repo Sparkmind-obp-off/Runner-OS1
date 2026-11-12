@@ -219,3 +219,17 @@ The complete product blueprint now defines the North Star, PRD, MVP/MVW, UX/UI, 
 | [29 — Strava OAuth, MCP, Cost & 2026 Policy Decision](docs/29_STRAVA_OAUTH_MCP_COST_AND_2026_POLICY_DECISION.md) | OAuth vs official MCP, subscription/cost, athlete capacity, AI/intermediary restrictions and Runner OS product decision |
 
 **Important:** These are product and implementation specifications. They do not mean the described features are already implemented or production-enabled. The existing source baseline remains the authority. In particular, Strava OAuth/live sync, agentic orchestration, approval inbox, personal memory and additional Cloudflare services remain gated until implemented and verified. The current frontend baseline is static HTML/CSS/JavaScript, not React/Vite; the frontend contract explicitly preserves this unless a measured migration is approved.
+
+## User access, onboarding & operations (Docs 32–36)
+
+Dokumentasi untuk pengguna eksternal dan operator:
+
+| Document | Purpose |
+|---|---|
+| [32 — Panduan Pengguna Runner OS](docs/32_PANDUAN_PENGGUNA_RUNNER_OS.md) | Cara membuat akun, setup, mencatat aktivitas, jadwal, event, dan AI |
+| [33 — Panduan Akses Pengguna & Public Beta](docs/33_PANDUAN_AKSES_PENGGUNA_DAN_PUBLIC_BETA.md) | Model multi-user, closed beta, public beta, dan release gates |
+| [34 — Privacy Notice Draft (ID)](docs/34_PRIVACY_NOTICE_DRAFT_ID.md) | Draft pemberitahuan privasi dengan kategori data dan checklist publikasi |
+| [35 — Terms of Service Draft (ID)](docs/35_TERMS_OF_SERVICE_DRAFT_ID.md) | Draft syarat penggunaan dan batasan AI/integrasi |
+| [36 — Operations, Support & Incident Runbook](docs/36_OPERATIONS_SUPPORT_AND_INCIDENT_RUNBOOK.md) | Dukungan, insiden keamanan, backup/restore, dan secret handling |
+
+**Public access warning:** docs 34 and 35 are explicitly DRAFT and must not be published as final legal terms. Docs 32–36 do not implement missing account export/deletion, rate limits, or production controls. Public launch remains blocked until the P0 checklist in docs 30 and 33 is verified.
