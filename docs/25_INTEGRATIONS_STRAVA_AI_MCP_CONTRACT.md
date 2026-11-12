@@ -78,3 +78,18 @@ Official launch references:
 - https://developers.strava.com/docs/authentication/
 - https://developers.strava.com/docs/webhooks/
 - https://www.strava.com/legal/api
+
+
+## 2026 Strava API Policy — mandatory correction
+
+The detailed, current decision is documented in [29 — Strava OAuth, MCP, Cost & 2026 Policy Decision](29_STRAVA_OAUTH_MCP_COST_AND_2026_POLICY_DECISION.md). It supersedes any earlier assumption in this file that Strava-imported activities may be sent to Runner OS AI context selection.
+
+**Do not pass Strava API data into any AI application** (including Groq, RAG, prompts/context windows, embeddings, agent tools, analytics or model evaluation). The Strava API Policy effective 1 June 2026 prohibits this; the exception is Strava's own first-party MCP for a subscriber's personal use of their own data. Runner OS must not operate its own Strava MCP server or intermediary that re-exposes Strava data.
+
+OAuth 2.0 remains the official authorization flow for a permitted developer-app integration. A single Runner OS app with per-athlete OAuth consent is the normal pattern, but a new Standard Tier app requires the app owner to hold a Strava subscription; it starts at one athlete, can self-upgrade to 10, and requires review above 10. API access currently has no additional fee according to Strava's FAQ. No guaranteed free trial was verified.
+
+**Product gate:** defer Strava API integration for the AI-first MVP unless a specific owner-only, non-AI display use case is justified and verified against the current API Agreement/Policy. Prefer Runner OS-native/manual activity records for AI-supported workflows. Keep all OAuth/token/sync status truthful; do not imply live integration exists.
+
+Official policy: https://www.strava.com/legal/api_policy
+Official agreement: https://www.strava.com/legal/api
+Official developer FAQ: https://communityhub.strava.com/developers-knowledge-base-14/strava-api-faq-12906
