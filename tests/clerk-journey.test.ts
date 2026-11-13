@@ -264,3 +264,22 @@ describe('Frontend Clerk SDK pin', () => {
     expect(source).not.toContain('@clerk/clerk-js@5')
   })
 })
+
+describe('CSRF / Origin validation', () => {
+  it('rejects state-changing API calls from a foreign Origin, even with a valid session cookie', async () => {
+    const signIn = await google('user_alice')
+    const foreign = await app.request(`${ORIGIN}/api/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example', Cookie: signIn.cookie! } })
+    expect(foreign.status).toBe(403)
+    expect((await foreign.json() as any).error.code).toBe('ORIGIN_FORBIDDEN')
+    // session must still be alive: the forged logout did nothing
+    expect((await call('/api/auth/me', { cookie: signIn.cookie })).body.data?.id).toBe(signIn.body.data.id)
+  })
+
+  it('accepts same-origin writes and still serves GET regardless of Origin', async () => {
+    const signIn = await google('user_alice')
+    const same = await app.request(`${ORIGIN}/api/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: ORIGIN, Cookie: signIn.cookie! } })
+    expect(same.status).toBe(200)
+    const get = await app.request(`${ORIGIN}/api/auth/config`, { headers: { Origin: 'https://other.example' } })
+    expect(get.status).toBe(200)
+  })
+})

@@ -62,6 +62,19 @@ export function createApp(
     }
   })
 
+  // CSRF defence in depth (cookie is already SameSite=Strict): state-changing API calls that carry an
+  // Origin header must come from the same origin as the request URL. Non-browser clients (no Origin) are
+  // still subject to cookie authentication.
+  app.use('/api/*', async (c, next) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method)) {
+      const origin = c.req.header('Origin')
+      if (origin && origin !== new URL(c.req.url).origin) {
+        return c.json({ error: { code: 'ORIGIN_FORBIDDEN', message: 'Cross-origin request ditolak.' } }, 403)
+      }
+    }
+    await next()
+  })
+
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store')
     c.set('store', storeFactory(c.env))
