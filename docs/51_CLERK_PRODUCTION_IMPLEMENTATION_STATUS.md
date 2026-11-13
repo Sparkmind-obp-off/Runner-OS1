@@ -157,3 +157,22 @@ Defects 1–3 were proven in a real Chromium against production Clerk; with fixe
 ### Production state
 
 `main` / production is still `4a5ee61`: `legacyPassword:true`, password register/login live, `clerk-js@5`, CSP without Protect. **Merge + deploy of PR #4 is required and requires owner authorization.** No production deploy, D1 change or secret change was made during this audit.
+
+## 11. Deployment record 2 (2026-11-13) — Google-only build
+
+| Item | Status | Evidence |
+|---|---|---|
+| PR #4 branch (11 commits) + Origin/CSRF check merged by fast-forward into `main` | DONE | remote `main` = `35a9f9f` (verified via `git fetch` + `rev-parse`) |
+| Pages deploy `cb422a2a-50a5-4b61-a250-39c3f5198661` (commit `35a9f9f`, project `runner-os`, branch `main`) | DEPLOYED | `wrangler pages deployment list` |
+| D1 migrations | none pending | `wrangler d1 migrations list --remote`: "No migrations to apply" |
+| `GET /api/auth/config` on `runner-os.biz.id` and the deployment URL | PASS | `legacyPassword:false`, `clerk.enabled:true`, `providers:["google"]` |
+| `POST /api/auth/register`, `/api/auth/login` | PASS | HTTP 410 `PASSWORD_AUTH_DISABLED` |
+| Protected APIs without session (`/api/home`, `/api/profile`, `/api/activities`, `/api/runs`) | PASS | HTTP 401 |
+| Foreign `Origin` on `POST /api/auth/logout` | PASS | HTTP 403 `ORIGIN_FORBIDDEN` |
+| Malformed Clerk token | PASS | HTTP 400 validation (forged well-formed JWT: covered by unit tests, 401 `AUTH_INVALID`) |
+| `type="password"` in served HTML | PASS | 0 matches |
+| Clerk DNS (`clerk.`, `accounts.`) | RESOLVES | `frontend-api.clerk.services`, `accounts.clerk.services` |
+| Real Google sign-in / sign-up / returning user / linking in a browser | **NOT VERIFIED** | no authorized Google test account available to the agent |
+| GitHub Actions CI | **BLOCKED** | GitHub App token lacks `workflows` permission; template kept in `docs/ci/github-actions-ci.yml`; owner must add `.github/workflows/ci.yml` |
+
+Local gates at `35a9f9f`: `npm run typecheck` exit 0; `npx vitest run` 8 files / 111 tests passed; `npm run build` exit 0.
